@@ -4,23 +4,46 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Card } from '@/components/ui/Card';
 import { ButtonLink } from '@/components/ui/ButtonLink';
 
+import {
+  getPublicArchive,
+  type PublicArchiveItem,
+  type ArchiveSort,
+  type ArchiveFilter,
+} from '@/lib/db/queries';
+
 export const revalidate = 3600;
 
-type ArchiveFilm = {
-  id: number;
-  title: string;
-  year: number;
-  avgScore: number;   // group average (1–10)
-  dissent: number;    // std dev
-  reviewsCount: number; // number of member ratings
-};
-
 type PageProps = {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-// Mock data for now — replace with DB query
-const MOCK_ARCHIVE: ArchiveFilm[] = [
+const perPage = 24;
+
+const getParam = (
+  sp: Record<string, string | string[] | undefined> | undefined,
+  key: string,
+  fallback = ''
+) => {
+  const v = sp?.[key];
+  return Array.isArray(v) ? (v[0] ?? fallback) : (v ?? fallback);
+};
+
+const toInt = (val: string | undefined, def: number) => {
+  const n = Number(val);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : def;
+};
+
+const buildQuery = (params: Record<string, string | undefined>) => {
+  const usp = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v && v.length) usp.set(k, v);
+  });
+  const q = usp.toString();
+  return q ? `?${q}` : '';
+};
+
+// Fallback mock data used only if DB query fails
+const MOCK_ARCHIVE: PublicArchiveItem[] = [
   { id: 201, title: 'The Conversation', year: 1974, avgScore: 8.6, dissent: 1.2, reviewsCount: 9 },
   { id: 202, title: 'Celine and Julie Go Boating', year: 1974, avgScore: 7.9, dissent: 2.1, reviewsCount: 8 },
   { id: 203, title: 'Memories of Murder', year: 2003, avgScore: 8.8, dissent: 0.9, reviewsCount: 9 },
@@ -43,66 +66,36 @@ const MOCK_ARCHIVE: ArchiveFilm[] = [
   { id: 220, title: 'Beau Travail', year: 1999, avgScore: 8.2, dissent: 2.0, reviewsCount: 8 },
 ];
 
-const getParam = (sp: PageProps['searchParams'], key: string, fallback = '') => {
-  const v = sp?.[key];
-  return Array.isArray(v) ? (v[0] ?? fallback) : (v ?? fallback);
-};
-
-const toInt = (val: string | undefined, def: number) => {
-  const n = Number(val);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : def;
-};
-
-const buildQuery = (params: Record<string, string | undefined>) => {
-  const usp = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v && v.length) usp.set(k, v);
-  });
-  const q = usp.toString();
-  return q ? `?${q}` : '';
-};
-
-const applyFilters = (
-  items: ArchiveFilm[],
+// Fallback helpers
+const applyFiltersLocal = (
+  items: PublicArchiveItem[],
   {
     q,
     filter,
     decade,
-  }: { q: string; filter: 'all' | 'consensus' | 'controversial'; decade: string }
+  }: { q: string; filter: ArchiveFilter; decade: string }
 ) => {
   let out = items;
-
   if (q) {
     const needle = q.toLowerCase();
     out = out.filter((f) => f.title.toLowerCase().includes(needle));
   }
-
-  if (filter === 'consensus') {
-    out = out.filter((f) => f.dissent < 1.2);
-  } else if (filter === 'controversial') {
-    out = out.filter((f) => f.dissent > 2.0);
-  }
-
+  if (filter === 'consensus') out = out.filter((f) => (f.dissent ?? 0) < 1.2);
+  if (filter === 'controversial') out = out.filter((f) => (f.dissent ?? 0) > 2.0);
   if (decade && decade !== 'all') {
     const base = parseInt(decade, 10);
-    if (!Number.isNaN(base)) {
-      out = out.filter((f) => f.year >= base && f.year < base + 10);
-    }
+    if (!Number.isNaN(base)) out = out.filter((f) => f.year >= base && f.year < base + 10);
   }
-
   return out;
 };
 
-const applySort = (
-  items: ArchiveFilm[],
-  sort: 'recent' | 'rating' | 'dissent' | 'alpha' | 'oldest'
-) => {
+const applySortLocal = (items: PublicArchiveItem[], sort: ArchiveSort) => {
   const arr = [...items];
   switch (sort) {
     case 'rating':
-      return arr.sort((a, b) => b.avgScore - a.avgScore || b.year - a.year);
+      return arr.sort((a, b) => (b.avgScore ?? -Infinity) - (a.avgScore ?? -Infinity) || b.year - a.year);
     case 'dissent':
-      return arr.sort((a, b) => b.dissent - a.dissent || b.year - a.year);
+      return arr.sort((a, b) => (b.dissent ?? -Infinity) - (a.dissent ?? -Infinity) || b.year - a.year);
     case 'alpha':
       return arr.sort((a, b) => a.title.localeCompare(b.title));
     case 'oldest':
@@ -113,25 +106,25 @@ const applySort = (
   }
 };
 
-const perPage = 24;
-
-const FilmRow = ({ film }: { film: ArchiveFilm }) => (
+const FilmRow = ({ film }: { film: PublicArchiveItem }) => (
   <Card padding="md" className="flex items-center justify-between gap-4">
     <div className="min-w-0">
-      <div className="truncate text-sm font-semibold text-white">
-        {film.title}
-      </div>
+      <div className="truncate text-sm font-semibold text-white">{film.title}</div>
       <div className="mt-0.5 text-xs text-neutral-400">
         {film.year} • {film.reviewsCount}/10 reviews
       </div>
     </div>
     <div className="flex shrink-0 items-center gap-2">
       <span className="inline-flex items-center gap-1 rounded-md border border-olive-500/20 bg-olive-500/10 px-2 py-1 text-xs text-olive-300">
-        <span className="tabular-nums">{film.avgScore.toFixed(1)}</span>
+        <span className="tabular-nums">
+          {typeof film.avgScore === 'number' ? film.avgScore.toFixed(1) : '—'}
+        </span>
         <span className="text-neutral-400">avg</span>
       </span>
       <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-neutral-200">
-        <span className="tabular-nums">{film.dissent.toFixed(1)}</span>
+        <span className="tabular-nums">
+          {typeof film.dissent === 'number' ? film.dissent.toFixed(1) : '—'}
+        </span>
         <span className="text-neutral-400">dissent</span>
       </span>
     </div>
@@ -145,8 +138,8 @@ const FilterBar = ({
   decade,
 }: {
   q: string;
-  sort: string;
-  filter: string;
+  sort: ArchiveSort;
+  filter: ArchiveFilter;
   decade: string;
 }) => {
   const decades = ['all', '1950', '1960', '1970', '1980', '1990', '2000', '2010', '2020'];
@@ -245,8 +238,8 @@ const Paginator = ({
   page: number;
   total: number;
   q: string;
-  sort: string;
-  filter: string;
+  sort: ArchiveSort;
+  filter: ArchiveFilter;
   decade: string;
 }) => {
   const totalPages = Math.max(1, Math.ceil(total / perPage));
@@ -296,34 +289,45 @@ const Paginator = ({
   );
 };
 
-const Page = ({ searchParams }: PageProps) => {
-  const q = getParam(searchParams, 'q');
-  const sort = getParam(searchParams, 'sort', 'recent') as
-    | 'recent'
-    | 'rating'
-    | 'dissent'
-    | 'alpha'
-    | 'oldest';
-  const filter = getParam(searchParams, 'filter', 'all') as
-    | 'all'
-    | 'consensus'
-    | 'controversial';
-  const decade = getParam(searchParams, 'decade', 'all');
-  const page = toInt(getParam(searchParams, 'page'), 1);
+const Page = async ({ searchParams }: PageProps) => {
+  // Await the params per Next 15 API
+  const sp = await searchParams;
 
-  // Filter + sort + paginate
-  const filtered = applyFilters(MOCK_ARCHIVE, { q, filter, decade });
-  const sorted = applySort(filtered, sort);
-  const total = sorted.length;
-  const start = (page - 1) * perPage;
-  const items = sorted.slice(start, start + perPage);
+  const q = getParam(sp, 'q');
+  const sort = (getParam(sp, 'sort', 'recent') as ArchiveSort) ?? 'recent';
+  const filter = (getParam(sp, 'filter', 'all') as ArchiveFilter) ?? 'all';
+  const decade = getParam(sp, 'decade', 'all');
+  const page = toInt(getParam(sp, 'page'), 1);
+
+  // Try DB first
+  const decadeOpt = decade !== 'all' && /^\d{4}$/.test(decade) ? Number(decade) : ('all' as const);
+  const result = await getPublicArchive({
+    q,
+    filter,
+    decade: decadeOpt,
+    sort,
+    page,
+    perPage,
+  }).catch(() => null);
+
+  let total = 0;
+  let items: PublicArchiveItem[] = [];
+
+  if (result) {
+    total = result.total;
+    items = result.items;
+  } else {
+    // Fallback (DB not ready)
+    const filtered = applyFiltersLocal(MOCK_ARCHIVE, { q, filter, decade });
+    const sorted = applySortLocal(filtered, sort);
+    total = sorted.length;
+    const start = (page - 1) * perPage;
+    items = sorted.slice(start, start + perPage);
+  }
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-10 md:py-14">
-      <SectionHeader
-        title="Archive"
-        subtitle={`Browse ${total} films discussed by the club`}
-      />
+      <SectionHeader title="Archive" subtitle={`Browse ${total} films discussed by the club`} />
 
       <Card padding="lg" className="mb-6">
         <FilterBar q={q} sort={sort} filter={filter} decade={decade} />

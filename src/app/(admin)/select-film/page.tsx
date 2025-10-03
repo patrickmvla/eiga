@@ -19,7 +19,7 @@ type Suggestion = {
 
 type AdminSelectData = {
   weekStart: string; // current Monday ISO
-  nextMonday: string; // YYYY-MM-DD for convenience
+  nextMonday: string; // YYYY-MM-DD
   upcoming: {
     id: number;
     title: string;
@@ -35,7 +35,7 @@ const fetchAdminSelectData = async (): Promise<AdminSelectData> => {
   const now = new Date();
   const day = now.getDay(); // 0 Sun, 1 Mon
   const monday = new Date(now);
-  const diffToMon = ((day + 6) % 7);
+  const diffToMon = (day + 6) % 7;
   monday.setHours(0, 0, 0, 0);
   monday.setDate(now.getDate() - diffToMon);
 
@@ -100,10 +100,10 @@ const fetchAdminSelectData = async (): Promise<AdminSelectData> => {
 };
 
 type PageProps = {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const getParam = (sp: PageProps['searchParams'], key: string) => {
+const getParam = (sp: Record<string, string | string[] | undefined>, key: string) => {
   const v = sp?.[key];
   return Array.isArray(v) ? v[0] : v;
 };
@@ -112,11 +112,14 @@ const Page = async ({ searchParams }: PageProps) => {
   const data = await fetchAdminSelectData();
   const { suggestions, upcoming, nextMonday } = data;
 
+  // Await search params (Next 15)
+  const sp = await searchParams;
+
   // Optional prefill from query (Load into form)
-  const prefillTmdbId = getParam(searchParams, 'tmdbId');
-  const prefillTitle = getParam(searchParams, 'title');
-  const prefillYear = getParam(searchParams, 'year');
-  const prefillPoster = getParam(searchParams, 'posterUrl');
+  const prefillTmdbId = getParam(sp, 'tmdbId');
+  const prefillTitle = getParam(sp, 'title');
+  const prefillYear = getParam(sp, 'year');
+  const prefillPoster = getParam(sp, 'posterUrl');
 
   const initialPick =
     prefillTmdbId && prefillTitle

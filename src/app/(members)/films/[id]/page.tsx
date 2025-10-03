@@ -1,241 +1,32 @@
 // app/(members)/films/[id]/page.tsx
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+
 import { Card } from "@/components/ui/Card";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 
-type WatchStatus = "not_watched" | "watching" | "watched" | "rewatched";
+import { auth } from "@/lib/auth/utils";
+import { getFilmDiscussionData } from "@/lib/db/queries";
+import { computeWeeklyPhase, secondsToTimecode } from "@/lib/utils/helpers";
+import { RealtimeBinder } from "./RealtimeBinder";
 
-type FilmDiscussionData = {
-  film: {
-    id: number;
-    title: string;
-    year: number;
-    director?: string | null;
-    runtime?: number | null;
-    posterUrl?: string | null;
-    weekStart: string; // ISO
-    adminSetup: {
-      why: string;
-      themes: string[];
-      technical?: string[];
-      context?: string;
-    };
-  };
-  stats: {
-    avgScore: number | null;
-    stdDev: number | null;
-    ratings: { username: string; score: number | null }[]; // up to 10
-  };
-  me: {
-    watchStatus: WatchStatus;
-    myScore: number | null;
-    hasReview: boolean;
-    reviewText?: string;
-  };
-  reviews: {
-    id: number;
-    user: string;
-    rating: number;
-    excerpt: string;
-    createdAt: string;
-  }[];
-  threads: {
-    id: number;
-    title: string;
-    createdAt: string;
-    comments: {
-      id: number;
-      user: string;
-      content: string;
-      hasSpoilers: boolean;
-      timestampRef?: number; // seconds
-      reactions?: {
-        insightful: number;
-        controversial: number;
-        brilliant: number;
-      };
-      replies?: {
-        id: number;
-        user: string;
-        content: string;
-        hasSpoilers: boolean;
-        timestampRef?: number;
-        reactions?: {
-          insightful: number;
-          controversial: number;
-          brilliant: number;
-        };
-      }[];
-    }[];
-  }[];
-};
+// type WatchStatus = "not_watched" | "watching" | "watched" | "rewatched";
 
-type PageProps = { params: { id: string } };
-
-// Mock fetch — replace with DB queries (Supabase/Drizzle)
-const fetchFilmDiscussionData = async (
-  id: number
-): Promise<FilmDiscussionData | null> => {
-  if (!Number.isFinite(id)) return null;
-
-  const monday = new Date();
-  const day = monday.getDay();
-  const diffToMon = (day + 6) % 7;
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(monday.getDate() - diffToMon);
-
-  return {
-    film: {
-      id,
-      title: "In the Mood for Love",
-      year: 2000,
-      director: "Wong Kar-wai",
-      runtime: 98,
-      posterUrl: "/images/mock-poster.jpg",
-      weekStart: monday.toISOString(),
-      adminSetup: {
-        why: "To study how rhythm and repetition sculpt longing without melodrama.",
-        themes: [
-          "Restraint as romance",
-          "Memory as mise-en-scène",
-          "Time loops in costume and music",
-        ],
-        technical: [
-          "Framing through thresholds",
-          "Recurring motifs in score",
-          "Slow shutter and stepping cadence",
-        ],
-        context: "A stop on our melancholy thread: Hou → Wong → Kore-eda.",
-      },
-    },
-    stats: {
-      avgScore: 8.6,
-      stdDev: 1.3,
-      ratings: [
-        { username: "akira", score: 9.0 },
-        { username: "agnes", score: 9.0 },
-        { username: "chantal", score: 7.5 },
-        { username: "bong", score: 8.5 },
-        { username: "claire", score: 8.0 },
-        { username: "barry", score: null }, // not rated yet
-        { username: "pauline", score: 8.0 },
-        { username: "manny", score: 9.0 },
-        { username: "yasujiro", score: 9.0 },
-      ],
-    },
-    me: {
-      watchStatus: "watching",
-      myScore: null,
-      hasReview: false,
-    },
-    reviews: [
-      {
-        id: 1,
-        user: "agnes",
-        rating: 9.0,
-        excerpt:
-          "The camera is memory—each repetition tilts meaning, never repeating emotion the same way.",
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: 2,
-        user: "bong",
-        rating: 8.5,
-        excerpt:
-          "Cheung’s gestures carry paragraphs of subtext; the hallway soundscape becomes narration.",
-        createdAt: new Date().toISOString(),
-      },
-    ],
-    threads: [
-      {
-        id: 11,
-        title: "Cheongsam patterns and time loops (00:12:40, 00:31:05)",
-        createdAt: new Date().toISOString(),
-        comments: [
-          {
-            id: 111,
-            user: "manny",
-            content:
-              "It’s the pattern recurrence that tricks you into feeling scenes rhyme—they aren’t flashbacks so much as echoes.",
-            hasSpoilers: false,
-            timestampRef: 760,
-            reactions: { insightful: 3, controversial: 0, brilliant: 2 },
-            replies: [
-              {
-                id: 112,
-                user: "agnes",
-                content:
-                  "Agree—and the corridor lighting modulates “memory” into that amber haze.",
-                hasSpoilers: false,
-                timestampRef: 1870,
-                reactions: { insightful: 1, controversial: 0, brilliant: 0 },
-              },
-            ],
-          },
-        ],
-      },
-      {
-        id: 12,
-        title: "Is the film romantic or post-romantic?",
-        createdAt: new Date().toISOString(),
-        comments: [
-          {
-            id: 121,
-            user: "claire",
-            content:
-              "Spoiler: The hotel room scene suggests confession is refused; the romance is asymptotic, never consummated.",
-            hasSpoilers: true,
-            reactions: { insightful: 2, controversial: 1, brilliant: 0 },
-          },
-        ],
-      },
-    ],
-  };
-};
-
-const secondsToTimestamp = (s?: number) => {
-  if (!s || s < 0) return null;
-  const hrs = Math.floor(s / 3600);
-  const mins = Math.floor((s % 3600) / 60);
-  const secs = Math.floor(s % 60);
-  return hrs > 0
-    ? `${hrs}:${mins.toString().padStart(2, "0")}:${secs
-        .toString()
-        .padStart(2, "0")}`
-    : `${mins}:${secs.toString().padStart(2, "0")}`;
-};
-
-const PhaseBadge = ({ weekStartISO }: { weekStartISO: string }) => {
-  const now = new Date();
-  const start = new Date(weekStartISO); // Mon 00:00
-  const fri = new Date(start);
-  fri.setDate(start.getDate() + 4); // Fri 00:00
-  const nextMon = new Date(start);
-  nextMon.setDate(start.getDate() + 7); // next Mon 00:00
-
-  const phase =
-    now < fri
-      ? ("watch" as const)
-      : now < nextMon
-      ? ("discussion" as const)
-      : ("ended" as const);
-
-  const text =
-    phase === "discussion"
-      ? "Discussion open"
-      : phase === "watch"
-      ? "Watching period"
-      : "Week ended";
+const PhaseBadge = ({ phase }: { phase: "watch" | "discussion" | "ended" }) => {
   const cls =
     phase === "discussion"
       ? "border-olive-500/30 bg-olive-500/10 text-olive-200"
       : phase === "watch"
       ? "border-white/15 bg-white/5 text-neutral-300"
       : "border-white/10 bg-white/5 text-neutral-400";
-
+  const text =
+    phase === "discussion"
+      ? "Discussion open"
+      : phase === "watch"
+      ? "Watching period"
+      : "Week ended";
   return (
     <span className={`inline-flex rounded-full px-3 py-1 text-xs ${cls}`}>
       {text}
@@ -258,12 +49,35 @@ const RatingPill = ({ score }: { score: number | null }) => {
   );
 };
 
+// const StatusPill = ({ status }: { status: WatchStatus }) => {
+//   const map: Record<WatchStatus, { label: string; cls: string }> = {
+//     not_watched: {
+//       label: "Not watched",
+//       cls: "border-white/10 bg-white/5 text-neutral-300",
+//     },
+//     watching: {
+//       label: "Watching",
+//       cls: "border-olive-500/30 bg-olive-500/10 text-olive-200",
+//     },
+//     watched: {
+//       label: "Watched",
+//       cls: "border-olive-500/30 bg-olive-500/15 text-olive-100",
+//     },
+//     rewatched: {
+//       label: "Rewatched",
+//       cls: "border-olive-500/30 bg-olive-500/10 text-olive-200",
+//     },
+//   };
+//   const m = map[status];
+//   return (
+//     <span className={`inline-flex rounded-md px-2 py-0.5 text-xs ${m.cls}`}>
+//       {m.label}
+//     </span>
+//   );
+// };
+
 const ReviewForm = ({ filmId }: { filmId: number }) => (
-  <form
-    method="POST"
-    action="/api/reviews" /* TODO: implement */
-    className="grid gap-3"
-  >
+  <form method="POST" action="/api/reviews" className="grid gap-3">
     <input type="hidden" name="film_id" value={filmId} />
     <div className="grid gap-2 md:grid-cols-[6rem_1fr] md:items-center">
       <label htmlFor="score" className="text-xs text-neutral-400">
@@ -290,9 +104,7 @@ const ReviewForm = ({ filmId }: { filmId: number }) => (
         name="review"
         required
         minLength={100}
-        maxLength={
-          8000
-        } /* word-count enforcement can be server-side; chars here */
+        maxLength={8000}
         rows={8}
         placeholder="Write your take. Consider themes, craft, context. Be specific—cite scenes and choices."
         className="w-full rounded-lg border border-white/10 bg-neutral-900/50 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-olive-400/40"
@@ -345,7 +157,7 @@ const CommentBlock = ({
   user: string;
   content: string;
   hasSpoilers: boolean;
-  timestampRef?: number;
+  timestampRef?: number | null;
   reactions?: { insightful: number; controversial: number; brilliant: number };
 }) => (
   <div className="rounded-md border border-white/10 bg-white/5 p-3">
@@ -354,7 +166,7 @@ const CommentBlock = ({
       <div className="flex items-center gap-2">
         {typeof timestampRef === "number" ? (
           <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs text-neutral-300">
-            {secondsToTimestamp(timestampRef)}
+            {secondsToTimecode(timestampRef)}
           </span>
         ) : null}
         {hasSpoilers ? (
@@ -387,21 +199,35 @@ const CommentBlock = ({
   </div>
 );
 
-const Page = async ({ params }: PageProps) => {
-  const id = Number(params.id);
-  const data = await fetchFilmDiscussionData(id);
+const Page = async ({ params }: { params: { id: string } }) => {
+  // Auth (for personalization + realtime presence)
+  const session = await auth();
+  if (!session?.user) {
+    redirect(`/login?callbackUrl=/films/${params.id}`);
+  }
+
+  const filmId = Number(params.id);
+  if (!Number.isFinite(filmId) || filmId <= 0) notFound();
+
+  const data = await getFilmDiscussionData(filmId, session.user.id);
   if (!data) notFound();
 
   const { film, stats, me, reviews, threads } = data;
 
+  const phaseInfo = computeWeeklyPhase(film.weekStart);
+  const phase = phaseInfo.phase;
+
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 md:py-10">
+      {/* Realtime presence/invalidation (headless) */}
+      <RealtimeBinder filmId={film.id} username={session.user.username} />
+
       {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <Link
             href="/films"
-            className="text-sm text-neutral-400 hover:text-white hover:underline underline-offset-4"
+            className="text-sm text-neutral-400 underline-offset-4 hover:text-white hover:underline"
           >
             ← Back to Films
           </Link>
@@ -413,7 +239,7 @@ const Page = async ({ params }: PageProps) => {
             {film.runtime ? <span> • {film.runtime} min</span> : null}
           </div>
           <div className="mt-2">
-            <PhaseBadge weekStartISO={film.weekStart} />
+            <PhaseBadge phase={phase} />
           </div>
         </div>
         <div className="relative hidden h-28 w-20 overflow-hidden rounded-md border border-white/10 bg-neutral-900/60 sm:block">
@@ -428,49 +254,23 @@ const Page = async ({ params }: PageProps) => {
         </div>
       </div>
 
-      {/* The Setup */}
+      {/* The Setup (admin notes) */}
       <section className="mt-4">
         <SectionHeader
           title="The Setup"
           subtitle="Admin context for the week"
         />
         <Card padding="lg">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="md:col-span-2">
-              <h3 className="text-sm font-semibold text-neutral-100">
-                Why this film
-              </h3>
-              <p className="mt-2 text-sm text-neutral-300">
-                {film.adminSetup.why}
-              </p>
-              {film.adminSetup.context ? (
-                <p className="mt-3 text-xs text-neutral-500">
-                  Context: {film.adminSetup.context}
-                </p>
-              ) : null}
+          <div className="rounded-lg border border-white/10 bg-white/5 p-4">
+            <div className="text-xs uppercase tracking-wide text-neutral-400">
+              Admin notes
             </div>
-            <div>
-              <h3 className="text-sm font-semibold text-neutral-100">
-                Themes to consider
-              </h3>
-              <ul className="mt-2 list-disc pl-5 text-sm text-neutral-300">
-                {film.adminSetup.themes.map((t, i) => (
-                  <li key={i}>{t}</li>
-                ))}
-              </ul>
-              {film.adminSetup.technical?.length ? (
-                <>
-                  <h4 className="mt-4 text-sm font-semibold text-neutral-100">
-                    Technical notes
-                  </h4>
-                  <ul className="mt-2 list-disc pl-5 text-sm text-neutral-300">
-                    {film.adminSetup.technical.map((t, i) => (
-                      <li key={i}>{t}</li>
-                    ))}
-                  </ul>
-                </>
-              ) : null}
-            </div>
+            {typeof film.adminNotes === "string" &&
+            film.adminNotes.trim().length > 0 ? (
+              <p className="mt-1 text-sm text-neutral-300">{film.adminNotes}</p>
+            ) : (
+              <p className="mt-1 text-sm text-neutral-400">No notes yet.</p>
+            )}
           </div>
         </Card>
       </section>
@@ -615,7 +415,7 @@ const Page = async ({ params }: PageProps) => {
           {threads.map((t) => (
             <Card key={t.id} padding="lg">
               <h3 className="text-sm font-semibold text-neutral-100">
-                {t.title}
+                {t.title || "Thread"}
               </h3>
               <div className="mt-3 grid gap-3">
                 {t.comments.map((c) => (
@@ -649,7 +449,7 @@ const Page = async ({ params }: PageProps) => {
                 <form
                   id="new-thread"
                   method="POST"
-                  action="/api/discussions" /* TODO: implement */
+                  action="/api/discussions"
                   className="mt-4 grid gap-2"
                 >
                   <input type="hidden" name="film_id" value={film.id} />
@@ -688,7 +488,7 @@ const Page = async ({ params }: PageProps) => {
                         name="timestamp_reference"
                         type="number"
                         min={0}
-                        step="1"
+                        step={1}
                         placeholder="e.g., 760"
                         className="w-24 rounded-lg border border-white/10 bg-neutral-900/50 px-2 py-1.5 text-sm text-neutral-100 focus:outline-none focus:ring-2 focus:ring-olive-400/40"
                       />

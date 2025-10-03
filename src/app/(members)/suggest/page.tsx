@@ -1,66 +1,12 @@
 // app/(members)/suggest/page.tsx
+import { redirect } from 'next/navigation';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Card } from '@/components/ui/Card';
 import { SuggestForm } from '@/components/suggest/SuggestForm';
+import { auth } from '@/lib/auth/utils';
+import { getSuggestPageData } from '@/lib/db/queries';
 
-type Suggestion = {
-  id: number;
-  tmdbId: number;
-  title: string;
-  year?: number | null;
-  posterUrl?: string | null;
-  status: 'pending' | 'selected' | 'rejected' | 'expired';
-  weekSuggested: string; // ISO date
-};
-
-type PageData = {
-  hasSubmittedThisWeek: boolean;
-  nextResetAt: string; // ISO Monday 00:00
-  mySuggestions: Suggestion[];
-};
-
-// Mock data — replace with DB query
-const fetchSuggestData = async (): Promise<PageData> => {
-  const now = new Date();
-  const day = now.getDay(); // 0 Sun, 1 Mon
-  const monday = new Date(now);
-  const diffToMon = ((day + 6) % 7);
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(now.getDate() - diffToMon);
-  const nextReset = new Date(monday);
-  nextReset.setDate(monday.getDate() + 7);
-
-  return {
-    hasSubmittedThisWeek: false,
-    nextResetAt: nextReset.toISOString(),
-    mySuggestions: [
-      {
-        id: 1,
-        tmdbId: 76122,
-        title: 'The Ascent',
-        year: 1977,
-        status: 'pending',
-        weekSuggested: monday.toISOString(),
-      },
-      {
-        id: 2,
-        tmdbId: 14161,
-        title: 'Beau Travail',
-        year: 1999,
-        status: 'selected',
-        weekSuggested: new Date(monday.getTime() - 7 * 86400000).toISOString(),
-      },
-      {
-        id: 3,
-        tmdbId: 37797,
-        title: 'La Cérémonie',
-        year: 1995,
-        status: 'expired',
-        weekSuggested: new Date(monday.getTime() - 35 * 86400000).toISOString(),
-      },
-    ],
-  };
-};
+type SuggestStatus = 'pending' | 'selected' | 'rejected' | 'expired';
 
 const formatCountdown = (targetISO: string) => {
   const now = new Date();
@@ -74,14 +20,14 @@ const formatCountdown = (targetISO: string) => {
   return [d ? `${d}d` : null, h ? `${h}h` : null, `${m}m`].filter(Boolean).join(' ');
 };
 
-const StatusBadge = ({ status }: { status: Suggestion['status'] }) => {
-  const map: Record<Suggestion['status'], string> = {
+const StatusBadge = ({ status }: { status: SuggestStatus }) => {
+  const map: Record<SuggestStatus, string> = {
     pending: 'border-white/10 bg-white/5 text-neutral-300',
     selected: 'border-olive-500/30 bg-olive-500/10 text-olive-200',
     rejected: 'border-red-500/30 bg-red-500/10 text-red-300',
     expired: 'border-yellow-500/30 bg-yellow-500/10 text-yellow-300',
   };
-  const label: Record<Suggestion['status'], string> = {
+  const label: Record<SuggestStatus, string> = {
     pending: 'Pending',
     selected: 'Selected',
     rejected: 'Rejected',
@@ -91,8 +37,16 @@ const StatusBadge = ({ status }: { status: Suggestion['status'] }) => {
 };
 
 const Page = async () => {
-  const data = await fetchSuggestData();
-  const { hasSubmittedThisWeek, nextResetAt, mySuggestions } = data;
+  const session = await auth();
+  if (!session?.user) {
+    redirect('/login?callbackUrl=/suggest');
+  }
+
+  const data = await getSuggestPageData(session.user.id).catch(() => null);
+
+  const hasSubmittedThisWeek = data?.hasSubmittedThisWeek ?? false;
+  const nextResetAt = data?.nextResetAt ?? new Date(Date.now() + 7 * 86400000).toISOString();
+  const mySuggestions = data?.mySuggestions ?? [];
 
   return (
     <>
@@ -137,16 +91,21 @@ const Page = async () => {
         ) : (
           <div className="grid gap-3">
             {mySuggestions.map((s) => (
-              <Card key={s.id} padding="md" className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-white">
-                    {s.title} {s.year ? <span className="text-neutral-400">({s.year})</span> : null}
+              <Card key={s.id} padding="md" className="grid gap-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-white">
+                      {s.title}
+                    </div>
+                    <div className="mt-0.5 text-xs text-neutral-500">
+                      Suggested week of {new Date(s.weekSuggested).toLocaleDateString()}
+                    </div>
                   </div>
-                  <div className="mt-0.5 text-xs text-neutral-500">
-                    Suggested week of {new Date(s.weekSuggested).toLocaleDateString()}
-                  </div>
+                  <StatusBadge status={s.status as SuggestStatus} />
                 </div>
-                <StatusBadge status={s.status} />
+                {s.pitch ? (
+                  <p className="text-sm text-neutral-300 line-clamp-2">{s.pitch}</p>
+                ) : null}
               </Card>
             ))}
           </div>

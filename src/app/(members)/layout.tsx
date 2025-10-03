@@ -2,8 +2,6 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ButtonLink } from '@/components/ui/ButtonLink';
-// Adjust this import to your Better-Auth helper
 import { auth } from '@/lib/auth/utils';
 
 type SessionUser = {
@@ -15,13 +13,7 @@ type SessionUser = {
   is_active?: boolean;
 };
 
-const NavLink = ({
-  href,
-  label,
-}: {
-  href: string;
-  label: string;
-}) => (
+const NavLink = ({ href, label }: { href: string; label: string }) => (
   <Link
     href={href}
     className="rounded-md px-3 py-1.5 text-sm text-neutral-300 hover:bg-white/5 hover:text-white"
@@ -31,13 +23,12 @@ const NavLink = ({
 );
 
 const MembersLayout = async ({ children }: { children: ReactNode }) => {
-  // Get session (Better-Auth). Replace `auth()` with your actual server-side session getter.
   const session = await auth().catch(() => null) as null | { user?: SessionUser };
 
-  const user = session?.user;
-  if (!user || user.is_active === false) {
+  if (!session?.user || session.user.is_active === false) {
     redirect('/login?callbackUrl=/dashboard');
   }
+  const user = session.user;
 
   const profileHref = `/profile/${user.username}`;
 
@@ -71,7 +62,6 @@ const MembersLayout = async ({ children }: { children: ReactNode }) => {
             >
               <span className="inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-white/5">
                 {user.avatar_url ? (
-                  // Use next/image if you prefer; plain img keeps this server-only.
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={user.avatar_url} alt={user.username} className="h-full w-full object-cover" />
                 ) : (

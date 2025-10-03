@@ -7,8 +7,8 @@ export type LandingFilm = {
   title: string;
   year: number;
   posterUrl?: string | null;
-  avgScore?: number;
-  dissent?: number;
+  avgScore?: number | null;  // ← accept null
+  dissent?: number | null;   // ← accept null
 };
 
 type Props = {

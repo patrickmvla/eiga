@@ -1,30 +1,49 @@
 // app/(auth)/login/page.tsx
-import type { Metadata } from "next";
-import Link from "next/link";
-import { Card } from "@/components/ui/Card";
-import { SectionHeader } from "@/components/ui/SectionHeader";
-import { ButtonLink } from "@/components/ui/ButtonLink";
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import { Card } from '@/components/ui/Card';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { ButtonLink } from '@/components/ui/ButtonLink';
 
 export const metadata: Metadata = {
-  title: "Log in · Eiga",
-  description:
-    "Log in to Eiga — private cinema club for serious film discourse.",
+  title: 'Log in · Eiga',
+  description: 'Log in to Eiga — private cinema club for serious film discourse.',
 };
 
 type PageProps = {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const getParam = (sp: PageProps["searchParams"], key: string) => {
+const getParam = (
+  sp: Record<string, string | string[] | undefined> | undefined,
+  key: string
+) => {
   const v = sp?.[key];
   return Array.isArray(v) ? v[0] : v;
 };
 
-const Page = ({ searchParams }: PageProps) => {
-  const sent = getParam(searchParams, "sent") === "1";
-  const error = getParam(searchParams, "error");
+const errorText = (code?: string) => {
+  switch (code) {
+    case 'invalid_email':
+      return 'Please enter a valid email address.';
+    case 'invalid_token':
+      return 'That sign-in link is invalid or expired. Please request a new one.';
+    case 'inactive':
+      return 'This account is inactive. Contact the admin if you think this is a mistake.';
+    case 'server':
+      return 'Something went wrong on our end. Try again shortly.';
+    default:
+      return 'Something went wrong. Try again in a moment.';
+  }
+};
 
-  const callbackUrl = getParam(searchParams, "callbackUrl") || "/dashboard";
+const Page = async ({ searchParams }: PageProps) => {
+  const sp = await searchParams;
+
+  const sent = getParam(sp, 'sent') === '1';
+  const error = getParam(sp, 'error');
+  const callbackUrl = getParam(sp, 'callbackUrl') || '/dashboard';
+  const preEmail = getParam(sp, 'email') || '';
 
   return (
     <main className="mx-auto w-full max-w-md px-4 py-10 md:py-14">
@@ -34,33 +53,24 @@ const Page = ({ searchParams }: PageProps) => {
       />
 
       {sent ? (
-        <Card padding="lg" className="mb-6 border-olive-500/30 bg-olive-500/10">
+        <Card padding="lg" className="mb-6 border-olive-500/30 bg-olive-500/10" aria-live="polite">
           <h3 className="text-white">Check your email</h3>
           <p className="mt-2 text-sm text-neutral-300">
-            If your address is recognized, a sign-in link is on its way. It may
-            take a minute. Be sure to check spam or promotions.
+            If your address is recognized, a sign-in link is on its way. It may take a minute.
+            Be sure to check spam or promotions.
           </p>
         </Card>
       ) : null}
 
       {error ? (
-        <Card padding="lg" className="mb-6 border-red-500/30 bg-red-500/10">
+        <Card padding="lg" className="mb-6 border-red-500/30 bg-red-500/10" aria-live="assertive">
           <h3 className="text-white">Could not send link</h3>
-          <p className="mt-2 text-sm text-neutral-300">
-            {error === "invalid_email"
-              ? "Please enter a valid email address."
-              : "Something went wrong. Try again in a moment."}
-          </p>
+          <p className="mt-2 text-sm text-neutral-300">{errorText(error)}</p>
         </Card>
       ) : null}
 
       <Card padding="lg">
-        <form
-          method="POST"
-          action="/api/auth/magic-link" /* TODO: implement Better-Auth route */
-          acceptCharset="UTF-8"
-          className="grid gap-4"
-        >
+        <form method="POST" action="/api/auth/magic-link" acceptCharset="UTF-8" className="grid gap-4" noValidate>
           {/* Honeypot for bots */}
           <input
             type="text"
@@ -72,10 +82,7 @@ const Page = ({ searchParams }: PageProps) => {
           />
 
           <div>
-            <label
-              htmlFor="email"
-              className="mb-1 block text-xs text-neutral-400"
-            >
+            <label htmlFor="email" className="mb-1 block text-xs text-neutral-400">
               Email address
             </label>
             <input
@@ -84,6 +91,7 @@ const Page = ({ searchParams }: PageProps) => {
               type="email"
               inputMode="email"
               required
+              defaultValue={preEmail}
               placeholder="you@example.com"
               className="w-full rounded-lg border border-white/10 bg-neutral-900/50 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-olive-400/40"
             />
@@ -98,8 +106,7 @@ const Page = ({ searchParams }: PageProps) => {
           </button>
 
           <div className="mt-2 text-xs text-neutral-500">
-            By logging in, you agree to uphold respectful, spoiler-tagged, and
-            consistent participation.
+            By logging in, you agree to uphold respectful, spoiler-tagged, and consistent participation.
           </div>
         </form>
       </Card>
@@ -109,11 +116,8 @@ const Page = ({ searchParams }: PageProps) => {
           I don’t have access — request an invite
         </ButtonLink>
         <div className="text-center text-sm text-neutral-400">
-          Have an invite code?{" "}
-          <Link
-            href="/invite"
-            className="text-olive-300 underline underline-offset-4 hover:text-olive-200"
-          >
+          Have an invite code?{' '}
+          <Link href="/invite" className="text-olive-300 underline underline-offset-4 hover:text-olive-200">
             Redeem it here
           </Link>
           .

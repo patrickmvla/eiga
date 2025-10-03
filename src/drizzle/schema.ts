@@ -248,6 +248,28 @@ export const watchStatus = pgTable(
   })
 );
 
+export const waitlist = pgTable(
+  'waitlist',
+  {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull(),
+    email: text('email').notNull(),
+    letterboxd: text('letterboxd'),
+    about: text('about').notNull(),
+    threeFilms: text('three_films'),
+    timezone: text('timezone'),
+    availability: text('availability').notNull(), // 'weekly' | 'biweekly' | 'monthly'
+    hear: text('hear'),
+    userAgent: text('user_agent'),
+    ip: text('ip'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  (t) => ({
+    emailIdx: index('waitlist_email_idx').on(t.email),
+    createdIdx: index('waitlist_created_idx').on(t.createdAt),
+  })
+);
+
 // Relations
 
 export const usersRelations = relations(users, ({ many }) => ({

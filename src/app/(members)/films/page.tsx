@@ -1,10 +1,10 @@
 // app/(members)/films/page.tsx
-import { SectionHeader } from "@/components/ui/SectionHeader";
-import { Card } from "@/components/ui/Card";
-import { ButtonLink } from "@/components/ui/ButtonLink";
-import { MemberFilmCard } from "@/components/films/MemberFilmCard";
-import { FilterBar } from "@/components/films/FilterBar";
-import { Paginator } from "@/components/films/Paginator";
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { Card } from '@/components/ui/Card';
+import { ButtonLink } from '@/components/ui/ButtonLink';
+import { MemberFilmCard } from '@/components/films/MemberFilmCard';
+import { FilterBar } from '@/components/films/FilterBar';
+import { Paginator } from '@/components/films/Paginator';
 import {
   perPage,
   applyFilters,
@@ -12,192 +12,92 @@ import {
   getParam,
   getParamArray,
   toNum,
-} from "@/components/films/utils";
-import type { FilmItem } from "@/components/films/types";
+} from '@/components/films/utils';
+import type { FilmItem } from '@/components/films/types';
+
+import { redirect } from 'next/navigation';
+import { auth } from '@/lib/auth/utils';
+import { getMemberFilms, type MemberFilmsSort, type MemberFilmsFilter } from '@/lib/db/queries';
 
 export const revalidate = 600;
 
-// Mock data — swap with DB results
-const MOCK: FilmItem[] = [
-  {
-    id: 201,
-    title: "The Conversation",
-    year: 1974,
-    director: "Francis Ford Coppola",
-    posterUrl: "/images/mock-1.jpg",
-    avgScore: 8.6,
-    dissent: 1.2,
-    myScore: 8.0,
-    genres: ["Thriller", "Drama"],
-    country: "US",
-    reviewsSample: [
-      "Paranoia scored into tape hiss; surveillance as confession.",
-    ],
-    discussionsSample: ["Sound design as POV; guilt and responsibility."],
-  },
-  {
-    id: 203,
-    title: "Memories of Murder",
-    year: 2003,
-    director: "Bong Joon-ho",
-    posterUrl: "/images/mock-3.jpg",
-    avgScore: 8.8,
-    dissent: 0.9,
-    myScore: 9.0,
-    genres: ["Crime", "Drama"],
-    country: "KR",
-    reviewsSample: ["Hopelessness as procedural; the ending stares back."],
-    discussionsSample: ["Rain, mud, and the bureaucratic sublime."],
-  },
-  {
-    id: 205,
-    title: "A Brighter Summer Day",
-    year: 1991,
-    director: "Edward Yang",
-    posterUrl: "/images/mock-5.jpg",
-    avgScore: 8.9,
-    dissent: 1.0,
-    myScore: null,
-    genres: ["Drama"],
-    country: "TW",
-  },
-  {
-    id: 209,
-    title: "In the Mood for Love",
-    year: 2000,
-    director: "Wong Kar-wai",
-    posterUrl: "/images/mock-poster.jpg",
-    avgScore: 9.1,
-    dissent: 1.3,
-    myScore: 8.5,
-    genres: ["Romance", "Drama"],
-    country: "HK",
-  },
-  {
-    id: 214,
-    title: "Seven Samurai",
-    year: 1954,
-    director: "Akira Kurosawa",
-    posterUrl: "/images/mock-4.jpg",
-    avgScore: 9.0,
-    dissent: 1.1,
-    myScore: 9.0,
-    genres: ["Adventure", "Drama"],
-    country: "JP",
-  },
-  {
-    id: 220,
-    title: "Beau Travail",
-    year: 1999,
-    director: "Claire Denis",
-    posterUrl: "/images/mock-8.jpg",
-    avgScore: 8.2,
-    dissent: 2.0,
-    myScore: null,
-    genres: ["Drama"],
-    country: "FR",
-    reviewsSample: ["Bodies as choreography; the final dance as verdict."],
-  },
-  {
-    id: 216,
-    title: "The Tree of Life",
-    year: 2011,
-    director: "Terrence Malick",
-    posterUrl: "/images/mock-2.jpg",
-    avgScore: 7.8,
-    dissent: 2.8,
-    myScore: 7.0,
-    genres: ["Drama"],
-    country: "US",
-  },
-  {
-    id: 207,
-    title: "La Cérémonie",
-    year: 1995,
-    director: "Claude Chabrol",
-    posterUrl: "/images/mock-7.jpg",
-    avgScore: 7.7,
-    dissent: 2.6,
-    myScore: null,
-    genres: ["Thriller", "Drama"],
-    country: "FR",
-  },
-  {
-    id: 204,
-    title: "The Red Shoes",
-    year: 1948,
-    director: "Powell & Pressburger",
-    posterUrl: "/images/mock-4.jpg",
-    avgScore: 8.2,
-    dissent: 1.7,
-    myScore: 8.0,
-    genres: ["Drama", "Romance"],
-    country: "UK",
-  },
-  {
-    id: 212,
-    title: "Stalker",
-    year: 1979,
-    director: "Andrei Tarkovsky",
-    posterUrl: "/images/mock-6.jpg",
-    avgScore: 8.4,
-    dissent: 1.8,
-    myScore: null,
-    genres: ["Sci-Fi", "Drama"],
-    country: "RU",
-    reviewsSample: ["Faith and doubt in the same frame for minutes on end."],
-  },
-];
-
 type PageProps = {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const Page = ({ searchParams }: PageProps) => {
+const Page = async ({ searchParams }: PageProps) => {
+  const session = await auth();
+  if (!session?.user) {
+    redirect('/login?callbackUrl=/films');
+  }
+
+  // Await params (Next 15)
+  const sp = await searchParams;
+
   // Params
-  const q = getParam(searchParams, "q", "")!;
-  const sort = (getParam(searchParams, "sort", "recent") ?? "recent") as
-    | "recent"
-    | "rating"
-    | "dissent"
-    | "alpha"
-    | "oldest";
-  const filter = (getParam(searchParams, "filter", "all") ?? "all") as
-    | "all"
-    | "consensus"
-    | "controversial";
-  const decade = getParam(searchParams, "decade", "all")!;
-  const genre = getParam(searchParams, "genre", "all")!;
-  const country = getParam(searchParams, "country", "all")!;
-  const min = toNum(getParam(searchParams, "min"), 1);
-  const max = toNum(getParam(searchParams, "max"), 10);
-  const page = Math.max(
-    1,
-    Math.floor(toNum(getParam(searchParams, "page"), 1))
-  );
+  const q = getParam(sp, 'q', '')!;
+  const sort = (getParam(sp, 'sort', 'recent') ?? 'recent') as MemberFilmsSort;
+  const filter = (getParam(sp, 'filter', 'all') ?? 'all') as MemberFilmsFilter;
+  const decade = getParam(sp, 'decade', 'all')!;
+  const genre = getParam(sp, 'genre', 'all')!;
+  const country = getParam(sp, 'country', 'all')!;
+  const min = toNum(getParam(sp, 'min'), 1);
+  const max = toNum(getParam(sp, 'max'), 10);
+  const page = Math.max(1, Math.floor(toNum(getParam(sp, 'page'), 1)));
 
   // searchIn: accept multiple ?in= OR a compact comma string
-  const inMulti = getParamArray(searchParams, "in");
+  const inMulti = getParamArray(sp, 'in');
   const searchIn =
-    inMulti.length > 0
-      ? inMulti
-      : (getParam(searchParams, "in", "") ?? "").split(",").filter(Boolean);
+    inMulti.length > 0 ? inMulti : (getParam(sp, 'in', '') ?? '').split(',').filter(Boolean);
 
-  // Compute
-  const filtered = applyFilters(MOCK, {
+  // Try DB query first (DB supports q/filter/decade/sort/page/perPage)
+  const decadeOpt = decade !== 'all' && /^\d{4}$/.test(decade) ? Number(decade) : ('all' as const);
+
+  const dbResult = await getMemberFilms(session.user.id, {
     q,
-    searchIn,
     filter,
-    decade,
-    genre,
-    country,
-    min,
-    max,
-  });
-  const sorted = applySort(filtered, sort);
-  const total = sorted.length;
-  const start = (page - 1) * perPage;
-  const items = sorted.slice(start, start + perPage);
+    decade: decadeOpt,
+    sort,
+    page,
+    perPage,
+  }).catch(() => null);
+
+  let total = 0;
+  let items: FilmItem[] = [];
+
+  if (dbResult) {
+    total = dbResult.total;
+    // Map DB items to FilmItem shape expected by MemberFilmCard
+    items = dbResult.items.map((it) => ({
+      id: it.id,
+      title: it.title,
+      year: it.year,
+      director: it.director,
+      posterUrl: it.posterUrl,
+      avgScore: it.avgScore ?? null,
+      dissent: it.dissent ?? null,
+      myScore: it.myScore ?? null,
+      genres: [] as string[],
+      country: '—',
+    }));
+  } else {
+    // Fallback: no DB — show empty result set (no MOCK reference)
+    const base: FilmItem[] = [];
+    const filtered = applyFilters(base, {
+      q,
+      searchIn,
+      filter,
+      decade,
+      genre,
+      country,
+      min,
+      max,
+    });
+    const sorted = applySort(filtered, sort);
+    total = sorted.length;
+    const start = (page - 1) * perPage;
+    items = sorted.slice(start, start + perPage);
+  }
 
   return (
     <>
@@ -225,8 +125,7 @@ const Page = ({ searchParams }: PageProps) => {
           basePath="/films"
         />
         <p className="mt-3 text-xs text-neutral-500">
-          Search scopes include titles/years/directors by default; you can also
-          search member reviews and discussion content.
+          Search scopes include titles/years/directors by default; you can also search member reviews and discussion content.
         </p>
       </Card>
 
@@ -256,7 +155,7 @@ const Page = ({ searchParams }: PageProps) => {
           country,
           min: String(min),
           max: String(max),
-          in: searchIn.join(","), // compact preserve
+          in: searchIn.join(','), // compact preserve
         }}
       />
     </>

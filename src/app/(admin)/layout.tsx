@@ -30,6 +30,8 @@ const AdminLayout = async ({ children }: { children: ReactNode }) => {
     }
   }
 
+  const hasSession = Boolean(session?.user);
+
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-white/10 bg-neutral-950/70 backdrop-blur">
@@ -57,14 +59,16 @@ const AdminLayout = async ({ children }: { children: ReactNode }) => {
             >
               Back to app
             </Link>
-            <form method="POST" action="/api/auth/signout" className="ml-2">
-              <button
-                type="submit"
-                className="inline-flex items-center justify-center rounded-md border border-olive-500/30 bg-olive-500/10 px-3 py-1.5 text-sm text-olive-200 transition-colors hover:bg-olive-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-olive-400/40"
-              >
-                Sign out
-              </button>
-            </form>
+            {hasSession ? (
+              <form method="POST" action="/api/auth/signout" className="ml-2">
+                <button
+                  type="submit"
+                  className="inline-flex items-center justify-center rounded-md border border-olive-500/30 bg-olive-500/10 px-3 py-1.5 text-sm text-olive-200 transition-colors hover:bg-olive-500/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-olive-400/40"
+                >
+                  Sign out
+                </button>
+              </form>
+            ) : null}
           </nav>
 
           {/* Mobile shortcuts */}

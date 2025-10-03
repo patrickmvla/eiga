@@ -27,14 +27,18 @@ export const MemberFilmCard = ({ film }: { film: FilmItem }) => (
           {film.year} {film.director ? `• ${film.director}` : ''}
         </div>
         <div className="mt-2 flex items-center gap-2 text-xs text-neutral-200">
-          <span className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2 py-0.5">
-            <span className="tabular-nums">{film.avgScore.toFixed(1)}</span>
-            <span className="text-neutral-400">avg</span>
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2 py-0.5">
-            <span className="tabular-nums">{film.dissent.toFixed(1)}</span>
-            <span className="text-neutral-400">dissent</span>
-          </span>
+          {typeof film.avgScore === 'number' && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2 py-0.5">
+              <span className="tabular-nums">{film.avgScore.toFixed(1)}</span>
+              <span className="text-neutral-400">avg</span>
+            </span>
+          )}
+          {typeof film.dissent === 'number' && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-white/10 px-2 py-0.5">
+              <span className="tabular-nums">{film.dissent.toFixed(1)}</span>
+              <span className="text-neutral-400">dissent</span>
+            </span>
+          )}
           {typeof film.myScore === 'number' ? (
             <span className="inline-flex items-center gap-1 rounded-md border border-olive-500/20 bg-olive-500/10 px-2 py-0.5 text-olive-200">
               <span className="tabular-nums">{film.myScore.toFixed(1)}</span>

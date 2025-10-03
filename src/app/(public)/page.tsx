@@ -1,6 +1,7 @@
 // app/(public)/page.tsx
 import Link from 'next/link';
 import Image from 'next/image';
+
 import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Card } from '@/components/ui/Card';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -8,64 +9,80 @@ import { PosterBackdrop } from '@/components/landing/PosterBackdrop';
 import { SeatBadge } from '@/components/landing/SeatBadge';
 import { ExcerptCard } from '@/components/landing/ExcerptCard';
 import { RecentFilmCard } from '@/components/landing/RecentFilmCard';
-import type { LandingFilm } from '@/components/landing/RecentFilmCard';
+
+import { getPublicLandingData, type PublicLandingData } from '@/lib/db/queries';
 
 export const revalidate = 3600;
 
-type PublicLandingData = {
+// Fallback strictly typed to PublicLandingData (posterUrl must be string | null)
+const fallbackData = (): PublicLandingData => ({
   currentFilm: {
-    id: number;
-    title: string;
-    year: number;
-    posterUrl?: string | null;
-  } | null;
-  seatsAvailable: number;
+    id: 101,
+    title: 'In the Mood for Love',
+    year: 2000,
+    posterUrl: '/images/mock-poster.jpg',
+    weekStart: '2000-01-03',
+  },
+  seatsAvailable: 3,
   stats: {
-    members: number;
-    capacity: number;
-    participation: number;
-    avgReviewLength: number;
-  };
-  excerpts: { id: number; text: string }[];
-  recentFilms: LandingFilm[];
-};
+    members: 7,
+    capacity: 10,
+    participation: 82,
+    avgReviewLength: 284,
+  },
+  excerpts: [
+    { id: 1, text: 'A masterclass in restraint—the spaces between gestures say more than dialogue ever could.' },
+    { id: 2, text: 'The framing traps characters within memories; it’s the camera that remembers what they try to forget.' },
+    { id: 3, text: 'Sound design as narration: the hallway footsteps become the film’s heartbeat.' },
+  ],
+  recentFilms: [
+    { id: 201, title: 'The Conversation', year: 1974, posterUrl: '/images/mock-1.jpg', avgScore: 8.6, dissent: 1.2 },
+    { id: 202, title: 'Celine and Julie Go Boating', year: 1974, posterUrl: '/images/mock-2.jpg', avgScore: 7.9, dissent: 2.1 },
+    { id: 203, title: 'Memories of Murder', year: 2003, posterUrl: '/images/mock-3.jpg', avgScore: 8.8, dissent: 0.9 },
+    { id: 204, title: 'The Red Shoes', year: 1948, posterUrl: '/images/mock-4.jpg', avgScore: 8.2, dissent: 1.7 },
+    { id: 205, title: 'A Brighter Summer Day', year: 1991, posterUrl: '/images/mock-5.jpg', avgScore: 8.9, dissent: 1.0 },
+    { id: 206, title: 'The Ascent', year: 1977, posterUrl: '/images/mock-6.jpg', avgScore: 8.1, dissent: 2.3 },
+    { id: 207, title: 'La Ceremonie', year: 1995, posterUrl: '/images/mock-7.jpg', avgScore: 7.7, dissent: 2.6 },
+    { id: 208, title: 'Killer of Sheep', year: 1978, posterUrl: '/images/mock-8.jpg', avgScore: 8.0, dissent: 1.5 },
+  ],
+});
 
-// TODO: replace with real DB queries next
-const fetchPublicLandingData = async (): Promise<PublicLandingData> => {
-  return {
-    currentFilm: {
-      id: 101,
-      title: 'In the Mood for Love',
-      year: 2000,
-      posterUrl: '/images/mock-poster.jpg',
-    },
-    seatsAvailable: 3,
-    stats: {
-      members: 7,
-      capacity: 10,
-      participation: 82,
-      avgReviewLength: 284,
-    },
-    excerpts: [
-      { id: 1, text: 'A masterclass in restraint—the spaces between gestures say more than dialogue ever could.' },
-      { id: 2, text: 'The framing traps characters within memories; it’s the camera that remembers what they try to forget.' },
-      { id: 3, text: 'Sound design as narration: the hallway footsteps become the film’s heartbeat.' },
-    ],
-    recentFilms: [
-      { id: 201, title: 'The Conversation', year: 1974, posterUrl: '/images/mock-1.jpg', avgScore: 8.6, dissent: 1.2 },
-      { id: 202, title: 'Celine and Julie Go Boating', year: 1974, posterUrl: '/images/mock-2.jpg', avgScore: 7.9, dissent: 2.1 },
-      { id: 203, title: 'Memories of Murder', year: 2003, posterUrl: '/images/mock-3.jpg', avgScore: 8.8, dissent: 0.9 },
-      { id: 204, title: 'The Red Shoes', year: 1948, posterUrl: '/images/mock-4.jpg', avgScore: 8.2, dissent: 1.7 },
-      { id: 205, title: 'A Brighter Summer Day', year: 1991, posterUrl: '/images/mock-5.jpg', avgScore: 8.9, dissent: 1.0 },
-      { id: 206, title: 'The Ascent', year: 1977, posterUrl: '/images/mock-6.jpg', avgScore: 8.1, dissent: 2.3 },
-      { id: 207, title: 'La Ceremonie', year: 1995, posterUrl: '/images/mock-7.jpg', avgScore: 7.7, dissent: 2.6 },
-      { id: 208, title: 'Killer of Sheep', year: 1978, posterUrl: '/images/mock-8.jpg', avgScore: 8.0, dissent: 1.5 },
-    ],
-  };
+const DissentIndex = ({ films }: { films: PublicLandingData['recentFilms'] }) => {
+  const ranked = films
+    .filter((f) => typeof f.dissent === 'number')
+    .sort((a, b) => (b.dissent ?? 0) - (a.dissent ?? 0))
+    .slice(0, 3);
+
+  if (ranked.length === 0) return null;
+
+  return (
+    <Card padding="lg" className="mt-6">
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-neutral-100">Dissent Index</h3>
+        <span className="text-xs text-neutral-500">Most controversial lately</span>
+      </div>
+      <div className="grid gap-2">
+        {ranked.map((f) => (
+          <div key={f.id} className="flex items-center justify-between rounded-md border border-white/10 bg-white/5 px-3 py-2">
+            <div className="min-w-0 truncate text-sm text-neutral-200">
+              {f.title} <span className="text-neutral-400">({f.year})</span>
+            </div>
+            <span className="ml-2 inline-flex items-center gap-1 rounded-md bg-white/10 px-2 py-0.5 text-xs text-neutral-200">
+              <span className="tabular-nums">{(f.dissent ?? 0).toFixed(1)}</span>
+              <span className="text-neutral-400">dissent</span>
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-neutral-500">
+        “Dissent” reflects how divided the group was (standard deviation of scores).
+      </p>
+    </Card>
+  );
 };
 
 const Page = async () => {
-  const data = await fetchPublicLandingData();
+  const data = (await getPublicLandingData().catch(() => null)) ?? fallbackData();
   const { currentFilm, seatsAvailable, stats, excerpts, recentFilms } = data;
 
   return (
@@ -146,6 +163,11 @@ const Page = async () => {
           {excerpts.map((ex) => (
             <ExcerptCard key={ex.id} text={ex.text} />
           ))}
+          {excerpts.length === 0 && (
+            <Card padding="lg" className="text-sm text-neutral-400">
+              No excerpts yet. Check back after this week’s discussion.
+            </Card>
+          )}
         </div>
       </section>
 
@@ -166,7 +188,15 @@ const Page = async () => {
           {recentFilms.slice(0, 8).map((film) => (
             <RecentFilmCard key={film.id} film={film} />
           ))}
+          {recentFilms.length === 0 && (
+            <Card padding="lg" className="text-sm text-neutral-400">
+              Nothing in the archive yet. First week coming soon.
+            </Card>
+          )}
         </div>
+
+        {/* Dissent Index */}
+        <DissentIndex films={recentFilms} />
       </section>
 
       {/* Invite CTA */}
