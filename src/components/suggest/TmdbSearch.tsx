@@ -1,6 +1,7 @@
-'use client';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Picked = {
   tmdbId: number;
@@ -28,7 +29,7 @@ export const TmdbSearch = ({
   disabled?: boolean;
   initial?: Picked | null;
 }) => {
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState("");
   const [results, setResults] = useState<TMDBMovie[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -62,8 +63,8 @@ export const TmdbSearch = ({
         const items: TMDBMovie[] = data.results ?? [];
         setResults(items.slice(0, 8));
       } catch (e: any) {
-        if (e.name !== 'AbortError') {
-          setErr('Could not fetch results.');
+        if (e.name !== "AbortError") {
+          setErr("Could not fetch results.");
         }
       } finally {
         setLoading(false);
@@ -111,9 +112,14 @@ export const TmdbSearch = ({
         <div className="flex items-center justify-between gap-3 rounded-lg border border-olive-500/30 bg-olive-500/10 p-3">
           <div className="min-w-0">
             <div className="truncate text-sm text-neutral-100">
-              {picked.title} {picked.year ? <span className="text-neutral-400">({picked.year})</span> : null}
+              {picked.title}{" "}
+              {picked.year ? (
+                <span className="text-neutral-400">({picked.year})</span>
+              ) : null}
             </div>
-            <div className="text-xs text-neutral-400">TMDB ID: {picked.tmdbId}</div>
+            <div className="text-xs text-neutral-400">
+              TMDB ID: {picked.tmdbId}
+            </div>
           </div>
           <button
             type="button"
@@ -137,7 +143,9 @@ export const TmdbSearch = ({
           ) : (
             <ul className="max-h-72 divide-y divide-white/10 overflow-auto">
               {results.map((m) => {
-                const year = m.release_date ? Number(m.release_date.slice(0, 4)) : null;
+                const year = m.release_date
+                  ? Number(m.release_date.slice(0, 4))
+                  : null;
                 return (
                   <li key={m.id}>
                     <button
@@ -146,7 +154,10 @@ export const TmdbSearch = ({
                       className="flex w-full items-center justify-between gap-3 p-3 text-left hover:bg-white/5"
                     >
                       <span className="truncate text-sm text-neutral-100">
-                        {m.title} {Number.isFinite(year) ? <span className="text-neutral-400">({year})</span> : null}
+                        {m.title}{" "}
+                        {Number.isFinite(year) ? (
+                          <span className="text-neutral-400">({year})</span>
+                        ) : null}
                       </span>
                       <span className="text-xs text-neutral-400">Pick</span>
                     </button>

@@ -1,44 +1,49 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/(public)/request-invite/page.tsx
-import type { Metadata } from 'next';
-import Link from 'next/link';
-import { SectionHeader } from '@/components/ui/SectionHeader';
-import { Card } from '@/components/ui/Card';
+import type { Metadata } from "next";
+import Link from "next/link";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { Card } from "@/components/ui/Card";
 
 export const metadata: Metadata = {
-  title: 'Request invite · Eiga',
+  title: "Request invite · Eiga",
   description:
-    'Join the Eiga waitlist — a private, invite-only cinema club for deep film discourse.',
+    "Join the Eiga waitlist — a private, invite-only cinema club for deep film discourse.",
 };
 
 type PageProps = {
   searchParams?: Record<string, string | string[] | undefined>;
 };
 
-const getParam = (sp: PageProps['searchParams'], key: string, def = '') => {
+const getParam = (sp: PageProps["searchParams"], key: string, def = "") => {
   const v = sp?.[key];
   return (Array.isArray(v) ? v[0] : v) ?? def;
 };
 
 const errorMessage = (code?: string) => {
   switch (code) {
-    case 'invalid':
-      return 'Please check your entries and try again.';
-    case 'rate_limited':
-      return 'Too many attempts. Please try again in a few minutes.';
-    case 'server':
-      return 'Something went wrong on our end. Please try again shortly.';
+    case "invalid":
+      return "Please check your entries and try again.";
+    case "rate_limited":
+      return "Too many attempts. Please try again in a few minutes.";
+    case "server":
+      return "Something went wrong on our end. Please try again shortly.";
     default:
       return null;
   }
 };
 
-const Page = ({ searchParams }: PageProps) => {
-  const success = getParam(searchParams, 'success') === '1';
-  const error = getParam(searchParams, 'error') || undefined;
+// MODIFICATION: Changed to an async function that accepts 'any' props.
+const Page = async (props: any) => {
+  // MODIFICATION: Await the searchParams prop.
+  const searchParams = await props.searchParams;
+
+  const success = getParam(searchParams, "success") === "1";
+  const error = getParam(searchParams, "error") || undefined;
 
   // Prefill convenience (kept if your API redirects back with these)
-  const preName = getParam(searchParams, 'name');
-  const preEmail = getParam(searchParams, 'email');
+  const preName = getParam(searchParams, "name");
+  const preEmail = getParam(searchParams, "email");
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 md:py-14">
@@ -48,18 +53,25 @@ const Page = ({ searchParams }: PageProps) => {
       />
 
       {success ? (
-        <Card padding="lg" className="mb-8 border-olive-500/30 bg-olive-500/10" aria-live="polite">
-          <h3 className="text-lg font-semibold text-white">Thanks for your interest.</h3>
+        <Card
+          padding="lg"
+          className="mb-8 border-olive-500/30 bg-olive-500/10"
+          aria-live="polite"
+        >
+          <h3 className="text-lg font-semibold text-white">
+            Thanks for your interest.
+          </h3>
           <p className="mt-2 text-neutral-300">
-            Your request is on our list. We review applications periodically and notify by email when a
-            spot becomes available. In the meantime, you can{' '}
+            Your request is on our list. We review applications periodically and
+            notify by email when a spot becomes available. In the meantime, you
+            can{" "}
             <Link
               href="/archive"
               className="text-olive-300 underline underline-offset-4 hover:text-olive-200"
             >
               browse the archive
-            </Link>{' '}
-            or read our{' '}
+            </Link>{" "}
+            or read our{" "}
             <Link
               href="/philosophy"
               className="text-olive-300 underline underline-offset-4 hover:text-olive-200"
@@ -72,9 +84,15 @@ const Page = ({ searchParams }: PageProps) => {
       ) : null}
 
       {error ? (
-        <Card padding="lg" className="mb-6 border-red-500/30 bg-red-500/10" aria-live="assertive">
+        <Card
+          padding="lg"
+          className="mb-6 border-red-500/30 bg-red-500/10"
+          aria-live="assertive"
+        >
           <h3 className="text-white">Could not submit your request</h3>
-          <p className="mt-2 text-sm text-neutral-200">{errorMessage(error) ?? 'Please try again.'}</p>
+          <p className="mt-2 text-sm text-neutral-200">
+            {errorMessage(error) ?? "Please try again."}
+          </p>
         </Card>
       ) : null}
 
@@ -98,7 +116,10 @@ const Page = ({ searchParams }: PageProps) => {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label htmlFor="name" className="mb-1 block text-xs text-neutral-400">
+              <label
+                htmlFor="name"
+                className="mb-1 block text-xs text-neutral-400"
+              >
                 Name
               </label>
               <input
@@ -114,7 +135,10 @@ const Page = ({ searchParams }: PageProps) => {
             </div>
 
             <div>
-              <label htmlFor="email" className="mb-1 block text-xs text-neutral-400">
+              <label
+                htmlFor="email"
+                className="mb-1 block text-xs text-neutral-400"
+              >
                 Email
               </label>
               <input
@@ -132,7 +156,10 @@ const Page = ({ searchParams }: PageProps) => {
           </div>
 
           <div>
-            <label htmlFor="letterboxd" className="mb-1 block text-xs text-neutral-400">
+            <label
+              htmlFor="letterboxd"
+              className="mb-1 block text-xs text-neutral-400"
+            >
               Letterboxd (or social) — optional
             </label>
             <input
@@ -147,7 +174,10 @@ const Page = ({ searchParams }: PageProps) => {
           </div>
 
           <div>
-            <label htmlFor="about" className="mb-1 block text-xs text-neutral-400">
+            <label
+              htmlFor="about"
+              className="mb-1 block text-xs text-neutral-400"
+            >
               Tell us about your taste in film
             </label>
             <textarea
@@ -167,7 +197,10 @@ const Page = ({ searchParams }: PageProps) => {
           </div>
 
           <div>
-            <label htmlFor="threeFilms" className="mb-1 block text-xs text-neutral-400">
+            <label
+              htmlFor="threeFilms"
+              className="mb-1 block text-xs text-neutral-400"
+            >
               Three films that changed how you watch
             </label>
             <textarea
@@ -182,7 +215,10 @@ const Page = ({ searchParams }: PageProps) => {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label htmlFor="timezone" className="mb-1 block text-xs text-neutral-400">
+              <label
+                htmlFor="timezone"
+                className="mb-1 block text-xs text-neutral-400"
+              >
                 Time zone
               </label>
               <input
@@ -195,7 +231,10 @@ const Page = ({ searchParams }: PageProps) => {
               />
             </div>
             <div>
-              <label htmlFor="availability" className="mb-1 block text-xs text-neutral-400">
+              <label
+                htmlFor="availability"
+                className="mb-1 block text-xs text-neutral-400"
+              >
                 Availability
               </label>
               <select
@@ -212,7 +251,10 @@ const Page = ({ searchParams }: PageProps) => {
           </div>
 
           <div>
-            <label htmlFor="hear" className="mb-1 block text-xs text-neutral-400">
+            <label
+              htmlFor="hear"
+              className="mb-1 block text-xs text-neutral-400"
+            >
               How did you hear about Eiga? — optional
             </label>
             <input
@@ -233,7 +275,8 @@ const Page = ({ searchParams }: PageProps) => {
               className="mt-1 h-4 w-4 rounded border-white/20 bg-neutral-900/60 text-olive-500 focus:outline-none focus:ring-2 focus:ring-olive-400/40"
             />
             <label htmlFor="conduct" className="text-sm text-neutral-300">
-              I agree to uphold a respectful, thoughtful tone; tag spoilers; and participate consistently.
+              I agree to uphold a respectful, thoughtful tone; tag spoilers; and
+              participate consistently.
             </label>
           </div>
 

@@ -1,10 +1,10 @@
 // lib/stores/user.store.ts
-'use client';
+"use client";
 
-import { create } from 'zustand';
-import { devtools, persist, createJSONStorage } from 'zustand/middleware';
+import { create } from "zustand";
+import { devtools, persist, createJSONStorage } from "zustand/middleware";
 
-export type Role = 'admin' | 'member';
+export type Role = "admin" | "member";
 
 export type SessionUser = {
   id: string;
@@ -17,8 +17,8 @@ export type SessionUser = {
 };
 
 export type Preferences = {
-  textSize: 'sm' | 'md' | 'lg'; // reading size for reviews/discussion
-  density: 'comfortable' | 'compact'; // UI spacing
+  textSize: "sm" | "md" | "lg"; // reading size for reviews/discussion
+  density: "comfortable" | "compact"; // UI spacing
   reduceMotion: boolean; // prefer reduced motion
   spoilerDefaultVisible: boolean; // default spoiler visibility
   email: {
@@ -37,12 +37,14 @@ type UserState = {
 
   // Actions
   setSession: (user: SessionUser | null) => void;
-  updateProfile: (patch: Partial<Pick<SessionUser, 'username' | 'name' | 'avatar_url'>>) => void;
+  updateProfile: (
+    patch: Partial<Pick<SessionUser, "username" | "name" | "avatar_url">>
+  ) => void;
 
   setPreferences: (patch: Partial<Preferences>) => void;
-  setEmailPrefs: (patch: Partial<Preferences['email']>) => void;
-  setTextSize: (size: Preferences['textSize']) => void;
-  setDensity: (density: Preferences['density']) => void;
+  setEmailPrefs: (patch: Partial<Preferences["email"]>) => void;
+  setTextSize: (size: Preferences["textSize"]) => void;
+  setDensity: (density: Preferences["density"]) => void;
   setReduceMotion: (val: boolean) => void;
   setSpoilerDefaultVisible: (val: boolean) => void;
 
@@ -52,8 +54,8 @@ type UserState = {
 };
 
 const defaultPreferences: Preferences = {
-  textSize: 'md',
-  density: 'comfortable',
+  textSize: "md",
+  density: "comfortable",
   reduceMotion: false,
   spoilerDefaultVisible: false,
   email: {
@@ -66,84 +68,93 @@ const defaultPreferences: Preferences = {
 export const useUserStore = create<UserState>()(
   devtools(
     persist(
-      (set, get) => ({
+      (set) => ({
         session: null,
         preferences: defaultPreferences,
 
-        setSession: (user) =>
-          set({ session: user }, false, 'user/setSession'),
+        setSession: (user) => set({ session: user }, false, "user/setSession"),
 
         updateProfile: (patch) =>
           set(
             (s) => (s.session ? { session: { ...s.session, ...patch } } : {}),
             false,
-            'user/updateProfile'
+            "user/updateProfile"
           ),
 
         setPreferences: (patch) =>
           set(
             (s) => ({ preferences: { ...s.preferences, ...patch } }),
             false,
-            'user/setPreferences'
+            "user/setPreferences"
           ),
 
         setEmailPrefs: (patch) =>
           set(
-            (s) => ({ preferences: { ...s.preferences, email: { ...s.preferences.email, ...patch } } }),
+            (s) => ({
+              preferences: {
+                ...s.preferences,
+                email: { ...s.preferences.email, ...patch },
+              },
+            }),
             false,
-            'user/setEmailPrefs'
+            "user/setEmailPrefs"
           ),
 
         setTextSize: (size) =>
           set(
             (s) => ({ preferences: { ...s.preferences, textSize: size } }),
             false,
-            'user/setTextSize'
+            "user/setTextSize"
           ),
 
         setDensity: (density) =>
           set(
             (s) => ({ preferences: { ...s.preferences, density } }),
             false,
-            'user/setDensity'
+            "user/setDensity"
           ),
 
         setReduceMotion: (val) =>
           set(
             (s) => ({ preferences: { ...s.preferences, reduceMotion: val } }),
             false,
-            'user/setReduceMotion'
+            "user/setReduceMotion"
           ),
 
         setSpoilerDefaultVisible: (val) =>
           set(
-            (s) => ({ preferences: { ...s.preferences, spoilerDefaultVisible: val } }),
+            (s) => ({
+              preferences: { ...s.preferences, spoilerDefaultVisible: val },
+            }),
             false,
-            'user/setSpoilerDefaultVisible'
+            "user/setSpoilerDefaultVisible"
           ),
 
-        clearSession: () =>
-          set({ session: null }, false, 'user/clearSession'),
+        clearSession: () => set({ session: null }, false, "user/clearSession"),
 
         resetPreferences: () =>
-          set({ preferences: defaultPreferences }, false, 'user/resetPreferences'),
+          set(
+            { preferences: defaultPreferences },
+            false,
+            "user/resetPreferences"
+          ),
 
         resetAll: () =>
           set(
             { session: null, preferences: defaultPreferences },
             false,
-            'user/resetAll'
+            "user/resetAll"
           ),
       }),
       {
-        name: 'eiga.user', // localStorage key
+        name: "eiga.user", // localStorage key
         storage: createJSONStorage(() => localStorage),
         // Persist only preferences; session comes from server auth
         partialize: (state) => ({ preferences: state.preferences }),
         version: 1,
       }
     ),
-    { name: 'user-store' }
+    { name: "user-store" }
   )
 );
 
@@ -151,8 +162,9 @@ export const useUserStore = create<UserState>()(
 export const userSelectors = {
   session: (s: UserState) => s.session,
   isLoggedIn: (s: UserState) => !!s.session,
-  isAdmin: (s: UserState) => s.session?.role === 'admin',
-  displayName: (s: UserState) => s.session?.name || s.session?.username || 'Member',
+  isAdmin: (s: UserState) => s.session?.role === "admin",
+  displayName: (s: UserState) =>
+    s.session?.name || s.session?.username || "Member",
 
   preferences: (s: UserState) => s.preferences,
   textSize: (s: UserState) => s.preferences.textSize,

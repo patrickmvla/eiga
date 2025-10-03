@@ -58,7 +58,7 @@ const cookieOptions = (maxAgeSec: number) => ({
 
 /** Server-side session getter (use in layouts/pages). */
 export const auth = async (): Promise<Session | null> => {
-  const c = cookies();
+  const c = await cookies(); // ✅ ADDED AWAIT
   const token = c.get(COOKIE_NAME)?.value;
   if (!token) return null;
 
@@ -105,11 +105,13 @@ export const createSession = async (user: SessionUser) => {
     },
     ttlSec
   );
-  cookies().set(COOKIE_NAME, token, cookieOptions(ttlSec));
+  const c = await cookies(); // ✅ ADDED AWAIT
+  c.set(COOKIE_NAME, token, cookieOptions(ttlSec));
 };
 
 export const destroySession = async () => {
-  cookies().set(COOKIE_NAME, '', { ...cookieOptions(0), maxAge: 0 });
+  const c = await cookies(); // ✅ ADDED AWAIT
+  c.set(COOKIE_NAME, '', { ...cookieOptions(0), maxAge: 0 });
 };
 
 /** Build a magic-link token (short-lived) and return the full callback URL */

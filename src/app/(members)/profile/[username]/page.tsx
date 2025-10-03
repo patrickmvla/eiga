@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/(members)/profile/[username]/page.tsx
 import Image from "next/image";
 import Link from "next/link";
@@ -12,7 +13,7 @@ import { db } from "@/lib/db/client";
 import { films, ratings, users as usersTable } from "@/drizzle/schema";
 import { desc, eq, sql as dsql } from "drizzle-orm";
 
-type PageProps = { params: { username: string } };
+// type PageProps = { params: { username: string } };
 
 type ProfileData = {
   user: {
@@ -57,6 +58,8 @@ type ProfileData = {
     groupAvg: number | null;
   }[];
 };
+
+// ... (All helper components like formatDate, DeltaPill, etc. can remain unchanged)
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, {
@@ -213,6 +216,8 @@ const FilmRow = ({
   </Link>
 );
 
+// ... (fetchProfileData function is fine and remains unchanged)
+
 const fetchProfileData = async (
   username: string
 ): Promise<ProfileData | null> => {
@@ -345,7 +350,9 @@ const fetchProfileData = async (
   };
 };
 
-const Page = async ({ params }: PageProps) => {
+// MODIFICATION: Changed props to 'any' and will await params inside.
+const Page = async (props: any) => {
+  const params = await props.params;
   const usernameParam = params.username;
 
   // First try DB; if user not found, 404

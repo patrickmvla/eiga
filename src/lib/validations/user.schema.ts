@@ -1,29 +1,31 @@
-// lib/validations/user.schema.ts
-import { z } from 'zod';
+import { z } from "zod";
 
 /* Utils */
 const trim = (s: string) => s.trim();
-const trimCompact = (s: string) => s.replace(/\s+/g, ' ').trim();
+const trimCompact = (s: string) => s.replace(/\s+/g, " ").trim();
 
 const Booleanish = z.preprocess((v) => {
-  if (typeof v === 'boolean') return v;
-  if (typeof v === 'number') return v === 1;
-  if (typeof v === 'string') {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v === 1;
+  if (typeof v === "string") {
     const s = v.toLowerCase();
-    if (['true', '1', 'on', 'yes'].includes(s)) return true;
-    if (['false', '0', 'off', 'no'].includes(s)) return false;
+    if (["true", "1", "on", "yes"].includes(s)) return true;
+    if (["false", "0", "off", "no"].includes(s)) return false;
   }
   return false;
 }, z.boolean());
 
+// FIXED: Changed z.string().url() to z.url()
 const OptionalURL = z
-  .string()
   .url()
   .max(1000)
-  .or(z.literal('').transform(() => undefined))
+  .or(z.literal("").transform(() => undefined))
   .optional();
 
-const NonEmptyTrimmed = z.string().transform(trim).refine((s) => s.length > 0, 'Required');
+const NonEmptyTrimmed = z
+  .string()
+  .transform(trim)
+  .refine((s) => s.length > 0, "Required");
 
 const UsernameRegex = /^[A-Za-z0-9_]{3,20}$/;
 const InviteCodeRegex = /^[A-Z0-9-]{8,64}$/;
@@ -32,34 +34,38 @@ const RelativeOrHttpUrl = z
   .string()
   .transform(trim)
   .refine(
-    (s) => s.length === 0 || s.startsWith('/') || /^https?:\/\//i.test(s),
-    'Must be a relative path or http(s) URL'
+    (s) => s.length === 0 || s.startsWith("/") || /^https?:\/\//i.test(s),
+    "Must be a relative path or http(s) URL"
   );
 
 /* Shared primitives */
-export const EmailSchema = z.string().transform(trim).email('Enter a valid email address');
+export const EmailSchema = z
+  .email("Enter a valid email address")
+  .transform(trim);
 export const UsernameSchema = z
   .string()
-  .transform(trim)
-  .regex(UsernameRegex, '3–20 chars, letters/numbers/underscore only');
+  .regex(UsernameRegex, "3–20 chars, letters/numbers/underscore only")
+  .transform(trim);
 export const NameSchema = z
   .string()
-  .transform(trimCompact)
-  .min(1, 'Name is required')
-  .max(80, 'Keep it under 80 characters');
+  .min(1, "Name is required")
+  .max(80, "Keep it under 80 characters")
+  .transform(trimCompact);
 
-export const UUIDSchema = z.string().uuid('Invalid ID');
+export const UUIDSchema = z.uuid("Invalid ID");
 export const InviteCodeSchema = z
   .string()
-  .transform((s) => s.toUpperCase().trim())
-  .regex(InviteCodeRegex, 'Invalid invite code');
+  .regex(InviteCodeRegex, "Invalid invite code")
+  .transform((s) => s.toUpperCase().trim());
 
 /* Honeypot field (must be empty) */
 export const HoneypotSchema = z
   .object({
-    website: z.string().optional().default(''),
+    website: z.string().optional().default(""),
   })
-  .refine((v) => !v.website || v.website.length === 0, { message: 'Bot detected' });
+  .refine((v) => !v.website || v.website.length === 0, {
+    error: "Bot detected",
+  });
 
 /* -------------------------------------------------------------------------- */
 /* Auth: Magic link login                                                     */
@@ -70,7 +76,7 @@ export const MagicLinkRequestSchema = z
     email: EmailSchema,
     callbackUrl: RelativeOrHttpUrl.optional(),
   })
-  .and(HoneypotSchema);
+  .extend(HoneypotSchema.shape);
 export type MagicLinkRequestInput = z.infer<typeof MagicLinkRequestSchema>;
 
 /* -------------------------------------------------------------------------- */
@@ -82,10 +88,16 @@ export const RedeemInviteSchema = z
     code: InviteCodeSchema,
     email: EmailSchema,
     username: UsernameSchema,
-    name: z.string().optional().transform((s) => (s ? trimCompact(s) : undefined)),
-    conduct: Booleanish.refine((v) => v === true, { message: 'You must agree to the code of conduct.' }),
+    name: z
+      .string()
+      .max(80)
+      .transform((s) => (s ? trimCompact(s) : undefined))
+      .optional(),
+    conduct: Booleanish.refine((v) => v === true, {
+      error: "You must agree to the code of conduct.",
+    }),
   })
-  .and(HoneypotSchema);
+  .extend(HoneypotSchema.shape);
 export type RedeemInviteInput = z.infer<typeof RedeemInviteSchema>;
 
 /* -------------------------------------------------------------------------- */
@@ -99,31 +111,33 @@ export const WaitlistRequestSchema = z
     letterboxd: OptionalURL,
     about: z
       .string()
-      .transform(trimCompact)
-      .min(50, 'Please write at least 50 characters')
-      .max(2000, 'Keep it under 2000 characters'),
+      .min(50, "Please write at least 50 characters")
+      .max(2000, "Keep it under 2000 characters")
+      .transform(trimCompact),
     threeFilms: z
       .string()
-      .optional()
-      .transform((s) => (typeof s === 'string' ? trimCompact(s) : undefined))
       .max(500)
-      .or(z.literal('').transform(() => undefined)),
+      .transform(trimCompact)
+      .or(z.literal("").transform(() => undefined))
+      .optional(),
     timezone: z
       .string()
-      .optional()
-      .transform((s) => (s ? trim(s) : undefined))
       .max(50)
-      .or(z.literal('').transform(() => undefined)),
-    availability: z.enum(['weekly', 'biweekly', 'monthly']).default('weekly'),
+      .transform(trim)
+      .or(z.literal("").transform(() => undefined))
+      .optional(),
+    availability: z.enum(["weekly", "biweekly", "monthly"]).default("weekly"),
     hear: z
       .string()
-      .optional()
-      .transform((s) => (s ? trimCompact(s) : undefined))
       .max(120)
-      .or(z.literal('').transform(() => undefined)),
-    conduct: Booleanish.refine((v) => v === true, { message: 'You must agree to the code of conduct.' }),
+      .transform(trimCompact)
+      .or(z.literal("").transform(() => undefined))
+      .optional(),
+    conduct: Booleanish.refine((v) => v === true, {
+      error: "You must agree to the code of conduct.",
+    }),
   })
-  .and(HoneypotSchema);
+  .extend(HoneypotSchema.shape);
 export type WaitlistRequestInput = z.infer<typeof WaitlistRequestSchema>;
 
 /* -------------------------------------------------------------------------- */
@@ -134,21 +148,21 @@ export const ProfileUpdateSchema = z.object({
   username: UsernameSchema.optional(),
   name: z
     .string()
-    .optional()
+    .max(80, "Keep it under 80 characters")
     .transform((s) => (s ? trimCompact(s) : undefined))
-    .refine((s) => (s ? s.length <= 80 : true), 'Keep it under 80 characters'),
+    .optional(),
   avatar_url: OptionalURL,
   bio: z
     .string()
-    .optional()
+    .max(280, "Bio should be ≤ 280 chars")
     .transform((s) => (s ? trimCompact(s) : undefined))
-    .refine((s) => (s ? s.length <= 280 : true), 'Bio should be ≤ 280 chars'),
+    .optional(),
 });
 export type ProfileUpdateInput = z.infer<typeof ProfileUpdateSchema>;
 
 export const PreferencesSchema = z.object({
-  textSize: z.enum(['sm', 'md', 'lg']).default('md').optional(),
-  density: z.enum(['comfortable', 'compact']).default('comfortable').optional(),
+  textSize: z.enum(["sm", "md", "lg"]).default("md").optional(),
+  density: z.enum(["comfortable", "compact"]).default("comfortable").optional(),
   reduceMotion: Booleanish.optional(),
   spoilerDefaultVisible: Booleanish.optional(),
   email: z
@@ -171,7 +185,7 @@ export const AdminSendInviteSchema = z
     to_email: EmailSchema,
     expires_in_days: z.coerce.number().int().min(1).max(90).default(14),
   })
-  .and(HoneypotSchema);
+  .extend(HoneypotSchema.shape);
 export type AdminSendInviteInput = z.infer<typeof AdminSendInviteSchema>;
 
 export const AdminCreateInvitesSchema = z
@@ -180,12 +194,12 @@ export const AdminCreateInvitesSchema = z
     expires_in_days: z.coerce.number().int().min(1).max(90).default(14),
     note: z
       .string()
-      .optional()
-      .transform((s) => (s ? trimCompact(s) : undefined))
       .max(140)
-      .or(z.literal('').transform(() => undefined)),
+      .transform(trimCompact)
+      .or(z.literal("").transform(() => undefined))
+      .optional(),
   })
-  .and(HoneypotSchema);
+  .extend(HoneypotSchema.shape);
 export type AdminCreateInvitesInput = z.infer<typeof AdminCreateInvitesSchema>;
 
 export const AdminInviteRevokeSchema = z.object({
@@ -208,30 +222,43 @@ export const AdminWaitlistApproveSchema = z.object({
   id: z.coerce.number().int().positive(),
   expires_in_days: z.coerce.number().int().min(1).max(90).default(14),
 });
-export type AdminWaitlistApproveInput = z.infer<typeof AdminWaitlistApproveSchema>;
+export type AdminWaitlistApproveInput = z.infer<
+  typeof AdminWaitlistApproveSchema
+>;
 
 export const AdminWaitlistRejectSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
-export type AdminWaitlistRejectInput = z.infer<typeof AdminWaitlistRejectSchema>;
+export type AdminWaitlistRejectInput = z.infer<
+  typeof AdminWaitlistRejectSchema
+>;
 
 export const AdminWaitlistArchiveSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
-export type AdminWaitlistArchiveInput = z.infer<typeof AdminWaitlistArchiveSchema>;
+export type AdminWaitlistArchiveInput = z.infer<
+  typeof AdminWaitlistArchiveSchema
+>;
 
 /* Admin: Members */
 export const AdminMemberToggleActiveSchema = z.object({
   user_id: UUIDSchema,
   set_active: z
-    .union([z.literal('0'), z.literal('1'), z.coerce.number().int().min(0).max(1), Booleanish])
+    .union([
+      z.literal("0"),
+      z.literal("1"),
+      z.coerce.number().int().min(0).max(1),
+      Booleanish,
+    ])
     .transform((v) => {
-      if (typeof v === 'string') return v === '1';
-      if (typeof v === 'number') return v === 1;
+      if (typeof v === "string") return v === "1";
+      if (typeof v === "number") return v === 1;
       return !!v;
     }),
 });
-export type AdminMemberToggleActiveInput = z.infer<typeof AdminMemberToggleActiveSchema>;
+export type AdminMemberToggleActiveInput = z.infer<
+  typeof AdminMemberToggleActiveSchema
+>;
 
 export const AdminMemberRemoveSchema = z.object({
   user_id: UUIDSchema,
@@ -240,21 +267,23 @@ export type AdminMemberRemoveInput = z.infer<typeof AdminMemberRemoveSchema>;
 
 /* Admin: Settings (landing teasers, seats available) */
 export const AdminSettingsUpdateSchema = z.object({
-  key: z.enum(['publicTeasersEnabled', 'seatsAvailable']),
+  key: z.enum(["publicTeasersEnabled", "seatsAvailable"]),
   value: z.string().transform(trim),
 });
-export type AdminSettingsUpdateInput = z.infer<typeof AdminSettingsUpdateSchema>;
+export type AdminSettingsUpdateInput = z.infer<
+  typeof AdminSettingsUpdateSchema
+>;
 
 /* Helper to coerce settings values safely */
 export const parseAdminSettingValue = (input: AdminSettingsUpdateInput) => {
-  if (input.key === 'publicTeasersEnabled') {
+  if (input.key === "publicTeasersEnabled") {
     const val = input.value.toLowerCase();
-    return ['1', 'true', 'on', 'yes'].includes(val);
+    return ["1", "true", "on", "yes"].includes(val);
   }
-  if (input.key === 'seatsAvailable') {
+  if (input.key === "seatsAvailable") {
     const n = Number(input.value);
     if (!Number.isFinite(n) || n < 0 || n > 10) {
-      throw new Error('seatsAvailable must be between 0 and 10');
+      throw new Error("seatsAvailable must be between 0 and 10");
     }
     return Math.floor(n);
   }

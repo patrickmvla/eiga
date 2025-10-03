@@ -1,10 +1,10 @@
 // lib/stores/film.store.ts
-'use client';
+"use client";
 
-import { create } from 'zustand';
-import { devtools, persist, createJSONStorage } from 'zustand/middleware';
+import { create } from "zustand";
+import { devtools, persist, createJSONStorage } from "zustand/middleware";
 
-export type WatchStatus = 'not_watched' | 'watching' | 'watched' | 'rewatched';
+export type WatchStatus = "not_watched" | "watching" | "watched" | "rewatched";
 
 export type FilmMeta = {
   id: number;
@@ -15,8 +15,8 @@ export type FilmMeta = {
 
 export type FilmDrafts = {
   score: number | null; // 1–10
-  review: string;       // raw text
-  updatedAt: number;    // ms
+  review: string; // raw text
+  updatedAt: number; // ms
 };
 
 type FilmState = {
@@ -42,10 +42,18 @@ type FilmState = {
 
   setScoreDraft: (filmId: number, score: number | null) => void;
   setReviewDraft: (filmId: number, review: string) => void;
-  importExistingReview: (filmId: number, score: number | null, review: string) => void;
+  importExistingReview: (
+    filmId: number,
+    score: number | null,
+    review: string
+  ) => void;
   clearDrafts: (filmId: number) => void;
 
-  setPending: (type: 'review' | 'status', filmId: number, value: boolean) => void;
+  setPending: (
+    type: "review" | "status",
+    filmId: number,
+    value: boolean
+  ) => void;
   reset: () => void;
 };
 
@@ -59,7 +67,7 @@ const clampScore = (v: number | null) => {
 export const useFilmStore = create<FilmState>()(
   devtools(
     persist(
-      (set, get) => ({
+      (set) => ({
         current: null,
         lastVisitedFilmId: null,
         spoilersVisible: false,
@@ -76,19 +84,20 @@ export const useFilmStore = create<FilmState>()(
               lastVisitedFilmId: film?.id ?? s.lastVisitedFilmId,
             }),
             false,
-            'film/setCurrent'
+            "film/setCurrent"
           ),
 
         markVisited: (filmId) =>
-          set({ lastVisitedFilmId: filmId }, false, 'film/markVisited'),
+          set({ lastVisitedFilmId: filmId }, false, "film/markVisited"),
 
         toggleSpoilers: (force) =>
           set(
             (s) => ({
-              spoilersVisible: typeof force === 'boolean' ? force : !s.spoilersVisible,
+              spoilersVisible:
+                typeof force === "boolean" ? force : !s.spoilersVisible,
             }),
             false,
-            'film/toggleSpoilers'
+            "film/toggleSpoilers"
           ),
 
         setWatchStatus: (filmId, status) =>
@@ -97,28 +106,40 @@ export const useFilmStore = create<FilmState>()(
               watchStatusByFilm: { ...s.watchStatusByFilm, [filmId]: status },
             }),
             false,
-            'film/setWatchStatus'
+            "film/setWatchStatus"
           ),
 
         setScoreDraft: (filmId, score) =>
           set(
             (s) => {
-              const d = s.draftsByFilm[filmId] ?? { score: null, review: '', updatedAt: Date.now() };
+              const d = s.draftsByFilm[filmId] ?? {
+                score: null,
+                review: "",
+                updatedAt: Date.now(),
+              };
               return {
                 draftsByFilm: {
                   ...s.draftsByFilm,
-                  [filmId]: { ...d, score: clampScore(score), updatedAt: Date.now() },
+                  [filmId]: {
+                    ...d,
+                    score: clampScore(score),
+                    updatedAt: Date.now(),
+                  },
                 },
               };
             },
             false,
-            'film/setScoreDraft'
+            "film/setScoreDraft"
           ),
 
         setReviewDraft: (filmId, review) =>
           set(
             (s) => {
-              const d = s.draftsByFilm[filmId] ?? { score: null, review: '', updatedAt: Date.now() };
+              const d = s.draftsByFilm[filmId] ?? {
+                score: null,
+                review: "",
+                updatedAt: Date.now(),
+              };
               return {
                 draftsByFilm: {
                   ...s.draftsByFilm,
@@ -127,7 +148,7 @@ export const useFilmStore = create<FilmState>()(
               };
             },
             false,
-            'film/setReviewDraft'
+            "film/setReviewDraft"
           ),
 
         importExistingReview: (filmId, score, review) =>
@@ -137,13 +158,13 @@ export const useFilmStore = create<FilmState>()(
                 ...s.draftsByFilm,
                 [filmId]: {
                   score: clampScore(score),
-                  review: review ?? '',
+                  review: review ?? "",
                   updatedAt: Date.now(),
                 },
               },
             }),
             false,
-            'film/importExistingReview'
+            "film/importExistingReview"
           ),
 
         clearDrafts: (filmId) =>
@@ -154,7 +175,7 @@ export const useFilmStore = create<FilmState>()(
               return { draftsByFilm: next };
             },
             false,
-            'film/clearDrafts'
+            "film/clearDrafts"
           ),
 
         setPending: (type, filmId, value) =>
@@ -163,7 +184,7 @@ export const useFilmStore = create<FilmState>()(
               pending: { ...s.pending, [`${type}:${filmId}`]: value },
             }),
             false,
-            'film/setPending'
+            "film/setPending"
           ),
 
         reset: () =>
@@ -177,11 +198,11 @@ export const useFilmStore = create<FilmState>()(
               pending: {},
             },
             false,
-            'film/reset'
+            "film/reset"
           ),
       }),
       {
-        name: 'eiga.film', // localStorage key
+        name: "eiga.film", // localStorage key
         storage: createJSONStorage(() => localStorage),
         // Only persist the user-meaningful bits
         partialize: (state) => ({
@@ -193,7 +214,7 @@ export const useFilmStore = create<FilmState>()(
         version: 1,
       }
     ),
-    { name: 'film-store' }
+    { name: "film-store" }
   )
 );
 
@@ -204,12 +225,12 @@ export const filmSelectors = {
   watchStatusFor:
     (filmId: number) =>
     (s: FilmState): WatchStatus =>
-      s.watchStatusByFilm[filmId] ?? 'not_watched',
+      s.watchStatusByFilm[filmId] ?? "not_watched",
   draftFor:
     (filmId: number) =>
     (s: FilmState): FilmDrafts => {
       const d = s.draftsByFilm[filmId];
-      return d ?? { score: null, review: '', updatedAt: 0 };
+      return d ?? { score: null, review: "", updatedAt: 0 };
     },
   scoreDraftFor:
     (filmId: number) =>
@@ -218,9 +239,9 @@ export const filmSelectors = {
   reviewDraftFor:
     (filmId: number) =>
     (s: FilmState): string =>
-      s.draftsByFilm[filmId]?.review ?? '',
+      s.draftsByFilm[filmId]?.review ?? "",
   isPending:
-    (type: 'review' | 'status', filmId: number) =>
+    (type: "review" | "status", filmId: number) =>
     (s: FilmState): boolean =>
       !!s.pending[`${type}:${filmId}`],
 };

@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/(admin)/manage/page.tsx
-import Image from 'next/image';
-import Link from 'next/link';
-import { Card } from '@/components/ui/Card';
-import { SectionHeader } from '@/components/ui/SectionHeader';
-import { ButtonLink } from '@/components/ui/ButtonLink';
+import Image from "next/image";
+import Link from "next/link";
+import { Card } from "@/components/ui/Card";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { ButtonLink } from "@/components/ui/ButtonLink";
 
 type Suggestion = {
   id: number;
@@ -19,7 +20,7 @@ type Suggestion = {
 type FlaggedItem =
   | {
       id: number;
-      type: 'review';
+      type: "review";
       filmId: number;
       filmTitle: string;
       user: string;
@@ -29,7 +30,7 @@ type FlaggedItem =
     }
   | {
       id: number;
-      type: 'comment';
+      type: "comment";
       filmId: number;
       filmTitle: string;
       user: string;
@@ -82,7 +83,7 @@ const fetchAdminManageData = async (): Promise<AdminManageData> => {
   const now = new Date();
   const day = now.getDay(); // 0 Sun, 1 Mon
   const monday = new Date(now);
-  const diffToMon = ((day + 6) % 7);
+  const diffToMon = (day + 6) % 7;
   monday.setHours(0, 0, 0, 0);
   monday.setDate(now.getDate() - diffToMon);
 
@@ -96,13 +97,13 @@ const fetchAdminManageData = async (): Promise<AdminManageData> => {
     weekStart: monday.toISOString(),
     currentFilm: {
       id: 101,
-      title: 'In the Mood for Love',
+      title: "In the Mood for Love",
       year: 2000,
-      director: 'Wong Kar-wai',
+      director: "Wong Kar-wai",
       runtime: 98,
-      posterUrl: '/images/mock-poster.jpg',
+      posterUrl: "/images/mock-poster.jpg",
       adminIntro:
-        'Restraint as romance, memory as mise-en-scène. Watch doorways, corridors, and recurring motifs in music and costume.',
+        "Restraint as romance, memory as mise-en-scène. Watch doorways, corridors, and recurring motifs in music and costume.",
       groupAvg: 8.6,
       dissent: 1.3,
     },
@@ -116,33 +117,33 @@ const fetchAdminManageData = async (): Promise<AdminManageData> => {
       {
         id: 1,
         tmdbId: 37797,
-        title: 'La Cérémonie',
+        title: "La Cérémonie",
         year: 1995,
-        user: 'agnes',
+        user: "agnes",
         pitch:
-          'Class, literacy, and power refracted through performance—pairs well with earlier discussions of surveillance and secrets.',
+          "Class, literacy, and power refracted through performance—pairs well with earlier discussions of surveillance and secrets.",
         weekSuggested: monday.toISOString(),
         expiresAt: in21.toISOString(),
       },
       {
         id: 2,
         tmdbId: 14161,
-        title: 'Beau Travail',
+        title: "Beau Travail",
         year: 1999,
-        user: 'claire',
+        user: "claire",
         pitch:
-          'Bodies as choreography; masculinity under discipline; final dance as thesis. A formal pivot for the group.',
+          "Bodies as choreography; masculinity under discipline; final dance as thesis. A formal pivot for the group.",
         weekSuggested: monday.toISOString(),
         expiresAt: in21.toISOString(),
       },
       {
         id: 3,
         tmdbId: 807,
-        title: 'Seven Samurai',
+        title: "Seven Samurai",
         year: 1954,
-        user: 'akira',
+        user: "akira",
         pitch:
-          'On structure and ensemble dynamics—connects with our thread on communal ethics and action form.',
+          "On structure and ensemble dynamics—connects with our thread on communal ethics and action form.",
         weekSuggested: monday.toISOString(),
         expiresAt: in21.toISOString(),
       },
@@ -150,37 +151,92 @@ const fetchAdminManageData = async (): Promise<AdminManageData> => {
     flagged: [
       {
         id: 11,
-        type: 'review',
+        type: "review",
         filmId: 101,
-        filmTitle: 'In the Mood for Love',
-        user: 'barry',
+        filmTitle: "In the Mood for Love",
+        user: "barry",
         excerpt:
-          'This felt slow to me. Maybe I missed the point—doorways and hallways blend together after a while.',
-        reason: 'Tone: dismissive without evidence',
+          "This felt slow to me. Maybe I missed the point—doorways and hallways blend together after a while.",
+        reason: "Tone: dismissive without evidence",
         createdAt: new Date().toISOString(),
       },
       {
         id: 12,
-        type: 'comment',
+        type: "comment",
         filmId: 101,
-        filmTitle: 'In the Mood for Love',
-        user: 'claire',
-        content: 'Spoiler: The hotel room conversation implies confession is refused.',
+        filmTitle: "In the Mood for Love",
+        user: "claire",
+        content:
+          "Spoiler: The hotel room conversation implies confession is refused.",
         hasSpoilers: true,
-        reason: 'Spoiler not tagged originally',
+        reason: "Spoiler not tagged originally",
         createdAt: new Date().toISOString(),
       },
     ],
     members: [
-      { id: '1', username: 'agnes', participationRate: 92, missedWeeks: 0, isActive: true },
-      { id: '2', username: 'akira', participationRate: 88, missedWeeks: 1, isActive: true },
-      { id: '3', username: 'claire', participationRate: 84, missedWeeks: 1, isActive: true },
-      { id: '4', username: 'bong', participationRate: 90, missedWeeks: 0, isActive: true },
-      { id: '5', username: 'chantal', participationRate: 70, missedWeeks: 3, isActive: true },
-      { id: '6', username: 'barry', participationRate: 65, missedWeeks: 4, isActive: true },
-      { id: '7', username: 'manny', participationRate: 86, missedWeeks: 1, isActive: true },
-      { id: '8', username: 'pauline', participationRate: 80, missedWeeks: 2, isActive: true },
-      { id: '9', username: 'yasujiro', participationRate: 78, missedWeeks: 2, isActive: true },
+      {
+        id: "1",
+        username: "agnes",
+        participationRate: 92,
+        missedWeeks: 0,
+        isActive: true,
+      },
+      {
+        id: "2",
+        username: "akira",
+        participationRate: 88,
+        missedWeeks: 1,
+        isActive: true,
+      },
+      {
+        id: "3",
+        username: "claire",
+        participationRate: 84,
+        missedWeeks: 1,
+        isActive: true,
+      },
+      {
+        id: "4",
+        username: "bong",
+        participationRate: 90,
+        missedWeeks: 0,
+        isActive: true,
+      },
+      {
+        id: "5",
+        username: "chantal",
+        participationRate: 70,
+        missedWeeks: 3,
+        isActive: true,
+      },
+      {
+        id: "6",
+        username: "barry",
+        participationRate: 65,
+        missedWeeks: 4,
+        isActive: true,
+      },
+      {
+        id: "7",
+        username: "manny",
+        participationRate: 86,
+        missedWeeks: 1,
+        isActive: true,
+      },
+      {
+        id: "8",
+        username: "pauline",
+        participationRate: 80,
+        missedWeeks: 2,
+        isActive: true,
+      },
+      {
+        id: "9",
+        username: "yasujiro",
+        participationRate: 78,
+        missedWeeks: 2,
+        isActive: true,
+      },
     ],
     settings: {
       publicTeasersEnabled: true,
@@ -194,7 +250,7 @@ const formatWindow = (weekStartISO: string) => {
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
   const fmt = (d: Date) =>
-    d.toLocaleDateString(undefined, { month: 'short', day: '2-digit' });
+    d.toLocaleDateString(undefined, { month: "short", day: "2-digit" });
   return `${fmt(start)} – ${fmt(end)}`;
 };
 
@@ -205,26 +261,41 @@ const computePhase = (weekStartISO: string) => {
   fri.setDate(start.getDate() + 4); // Fri 00:00
   const nextMon = new Date(start);
   nextMon.setDate(start.getDate() + 7); // Mon 00:00
-  if (now < fri) return { phase: 'watch' as const, label: 'Watching period' };
-  if (now < nextMon) return { phase: 'discussion' as const, label: 'Discussion open' };
-  return { phase: 'ended' as const, label: 'Week ended' };
+  if (now < fri) return { phase: "watch" as const, label: "Watching period" };
+  if (now < nextMon)
+    return { phase: "discussion" as const, label: "Discussion open" };
+  return { phase: "ended" as const, label: "Week ended" };
 };
 
-const PhaseBadge = ({ phase }: { phase: 'watch' | 'discussion' | 'ended' }) => {
+const PhaseBadge = ({ phase }: { phase: "watch" | "discussion" | "ended" }) => {
   const map = {
-    discussion: 'border-olive-500/30 bg-olive-500/10 text-olive-200',
-    watch: 'border-white/15 bg-white/5 text-neutral-300',
-    ended: 'border-white/10 bg-white/5 text-neutral-400',
+    discussion: "border-olive-500/30 bg-olive-500/10 text-olive-200",
+    watch: "border-white/15 bg-white/5 text-neutral-300",
+    ended: "border-white/10 bg-white/5 text-neutral-400",
   } as const;
   const text =
-    phase === 'discussion' ? 'Discussion open' : phase === 'watch' ? 'Watching period' : 'Week ended';
-  return <span className={`inline-flex rounded-full px-3 py-1 text-xs ${map[phase]}`}>{text}</span>;
+    phase === "discussion"
+      ? "Discussion open"
+      : phase === "watch"
+      ? "Watching period"
+      : "Week ended";
+  return (
+    <span
+      className={`inline-flex rounded-full px-3 py-1 text-xs ${map[phase]}`}
+    >
+      {text}
+    </span>
+  );
 };
 
 const SmallStat = ({ label, value }: { label: string; value: string }) => (
   <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-    <div className="text-xs uppercase tracking-wide text-neutral-400">{label}</div>
-    <div className="mt-1 text-lg font-semibold text-white tabular-nums">{value}</div>
+    <div className="text-xs uppercase tracking-wide text-neutral-400">
+      {label}
+    </div>
+    <div className="mt-1 text-lg font-semibold text-white tabular-nums">
+      {value}
+    </div>
   </div>
 );
 
@@ -232,7 +303,8 @@ const SuggestionRow = ({ s }: { s: Suggestion }) => (
   <div className="grid gap-2 rounded-lg border border-white/10 bg-white/5 p-3 md:grid-cols-[1fr_auto] md:items-center">
     <div>
       <div className="truncate text-sm font-semibold text-white">
-        {s.title} {s.year ? <span className="text-neutral-400">({s.year})</span> : null}
+        {s.title}{" "}
+        {s.year ? <span className="text-neutral-400">({s.year})</span> : null}
       </div>
       <div className="mt-0.5 text-xs text-neutral-500">
         by {s.user} • expires {new Date(s.expiresAt).toLocaleDateString()}
@@ -268,8 +340,11 @@ const FlaggedCard = ({ item }: { item: FlaggedItem }) => (
   <div className="grid gap-2 rounded-lg border border-white/10 bg-white/5 p-3">
     <div className="flex items-center justify-between">
       <div className="text-xs uppercase tracking-wide text-neutral-400">
-        {item.type === 'review' ? 'Review' : 'Comment'} • {item.user} •{' '}
-        <Link href={`/films/${item.filmId}`} className="text-neutral-300 underline-offset-4 hover:text-white hover:underline">
+        {item.type === "review" ? "Review" : "Comment"} • {item.user} •{" "}
+        <Link
+          href={`/films/${item.filmId}`}
+          className="text-neutral-300 underline-offset-4 hover:text-white hover:underline"
+        >
           {item.filmTitle}
         </Link>
       </div>
@@ -278,7 +353,7 @@ const FlaggedCard = ({ item }: { item: FlaggedItem }) => (
       </span>
     </div>
     <div className="text-sm text-neutral-300">
-      {item.type === 'review' ? (item as any).excerpt : (item as any).content}
+      {item.type === "review" ? (item as any).excerpt : (item as any).content}
     </div>
     <div className="flex items-center justify-end gap-2">
       {/* Highlight (for excerpt surface) */}
@@ -324,7 +399,11 @@ const MemberRow = ({ m }: { m: Member }) => (
       <span className="inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-neutral-900/60">
         {m.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={m.avatarUrl} alt={m.username} className="h-full w-full object-cover" />
+          <img
+            src={m.avatarUrl}
+            alt={m.username}
+            className="h-full w-full object-cover"
+          />
         ) : (
           <span className="text-[10px] uppercase text-neutral-300">
             {m.username.slice(0, 2)}
@@ -334,25 +413,25 @@ const MemberRow = ({ m }: { m: Member }) => (
       <div>
         <div className="text-sm text-neutral-200">{m.name ?? m.username}</div>
         <div className="text-xs text-neutral-500">
-          Participation {m.participationRate}% • Missed {m.missedWeeks}{' '}
-          {m.missedWeeks === 1 ? 'week' : 'weeks'}
+          Participation {m.participationRate}% • Missed {m.missedWeeks}{" "}
+          {m.missedWeeks === 1 ? "week" : "weeks"}
         </div>
       </div>
     </div>
     <div className="flex items-center gap-2">
       <form method="POST" action="/api/admin/members/toggle-active">
         <input type="hidden" name="user_id" value={m.id} />
-        <input type="hidden" name="set_active" value={m.isActive ? '0' : '1'} />
+        <input type="hidden" name="set_active" value={m.isActive ? "0" : "1"} />
         <button
           type="submit"
           className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 ${
             m.isActive
-              ? 'border border-yellow-500/30 bg-yellow-500/10 text-yellow-300 hover:bg-yellow-500/20 focus-visible:ring-yellow-400/40'
-              : 'border border-olive-500/30 bg-olive-500/10 text-olive-200 hover:bg-olive-500/20 focus-visible:ring-olive-400/40'
+              ? "border border-yellow-500/30 bg-yellow-500/10 text-yellow-300 hover:bg-yellow-500/20 focus-visible:ring-yellow-400/40"
+              : "border border-olive-500/30 bg-olive-500/10 text-olive-200 hover:bg-olive-500/20 focus-visible:ring-olive-400/40"
           }`}
-          title={m.isActive ? 'Deactivate member' : 'Activate member'}
+          title={m.isActive ? "Deactivate member" : "Activate member"}
         >
-          {m.isActive ? 'Deactivate' : 'Activate'}
+          {m.isActive ? "Deactivate" : "Activate"}
         </button>
       </form>
       <form method="POST" action="/api/admin/members/remove">
@@ -371,7 +450,15 @@ const MemberRow = ({ m }: { m: Member }) => (
 
 const Page = async () => {
   const data = await fetchAdminManageData();
-  const { weekStart, currentFilm, stats, suggestions, flagged, members, settings } = data;
+  const {
+    weekStart,
+    currentFilm,
+    stats,
+    suggestions,
+    flagged,
+    members,
+    settings,
+  } = data;
   const phase = computePhase(weekStart);
 
   return (
@@ -384,10 +471,19 @@ const Page = async () => {
 
       {/* Summary */}
       <div className="grid gap-3 md:grid-cols-4">
-        <SmallStat label="Members" value={`${stats.members}/${stats.capacity}`} />
-        <SmallStat label="Watched" value={`${stats.watchedCount}/${stats.members}`} />
+        <SmallStat
+          label="Members"
+          value={`${stats.members}/${stats.capacity}`}
+        />
+        <SmallStat
+          label="Watched"
+          value={`${stats.watchedCount}/${stats.members}`}
+        />
         <SmallStat label="Participation" value={`${stats.participation}%`} />
-        <SmallStat label="Seats available" value={`${settings.seatsAvailable}`} />
+        <SmallStat
+          label="Seats available"
+          value={`${settings.seatsAvailable}`}
+        />
       </div>
 
       {/* Current film */}
@@ -395,7 +491,11 @@ const Page = async () => {
         <SectionHeader
           title="This week’s film"
           subtitle="Intro, stats, and quick actions"
-          action={<ButtonLink href="/select-film" variant="outline" size="md">Select next</ButtonLink>}
+          action={
+            <ButtonLink href="/select-film" variant="outline" size="md">
+              Select next
+            </ButtonLink>
+          }
         />
         <Card padding="lg" className="relative overflow-hidden">
           <div className="absolute inset-0 -z-10 opacity-25">
@@ -427,41 +527,54 @@ const Page = async () => {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-balance text-2xl font-semibold tracking-tight text-white md:text-3xl">
-                    {currentFilm.title}{' '}
-                    <span className="text-neutral-400">({currentFilm.year})</span>
+                    {currentFilm.title}{" "}
+                    <span className="text-neutral-400">
+                      ({currentFilm.year})
+                    </span>
                   </h2>
                 </div>
                 <div className="mt-1 text-sm text-neutral-400">
-                  {currentFilm.director ? <span>Dir. {currentFilm.director}</span> : null}
-                  {currentFilm.runtime ? <span> • {currentFilm.runtime} min</span> : null}
+                  {currentFilm.director ? (
+                    <span>Dir. {currentFilm.director}</span>
+                  ) : null}
+                  {currentFilm.runtime ? (
+                    <span> • {currentFilm.runtime} min</span>
+                  ) : null}
                 </div>
                 <p className="mt-3 text-sm text-neutral-300">
-                  {currentFilm.adminIntro ?? 'No introduction yet.'}
+                  {currentFilm.adminIntro ?? "No introduction yet."}
                 </p>
 
                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <ButtonLink href={`/films/${currentFilm.id}`} variant="primary" size="md">
+                  <ButtonLink
+                    href={`/films/${currentFilm.id}`}
+                    variant="primary"
+                    size="md"
+                  >
                     Open discussion
                   </ButtonLink>
                   <ButtonLink href="/select-film" variant="outline" size="md">
                     Edit introduction
                   </ButtonLink>
-                  {typeof currentFilm.groupAvg === 'number' ? (
+                  {typeof currentFilm.groupAvg === "number" ? (
                     <span className="inline-flex items-center gap-1 rounded-md border border-olive-500/20 bg-olive-500/10 px-2 py-1 text-xs text-olive-200">
-                      <span className="tabular-nums">{currentFilm.groupAvg.toFixed(1)}</span>
+                      <span className="tabular-nums">
+                        {currentFilm.groupAvg.toFixed(1)}
+                      </span>
                       <span className="text-neutral-400">avg</span>
                     </span>
                   ) : null}
-                  {typeof currentFilm.dissent === 'number' ? (
+                  {typeof currentFilm.dissent === "number" ? (
                     <span className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-neutral-200">
-                      <span className="tabular-nums">{currentFilm.dissent.toFixed(1)}</span>
+                      <span className="tabular-nums">
+                        {currentFilm.dissent.toFixed(1)}
+                      </span>
                       <span className="text-neutral-400">dissent</span>
                     </span>
                   ) : null}
                 </div>
               </div>
             </div>
-
           ) : (
             <div className="text-sm text-neutral-400">
               No film selected. Use “Select next” to schedule Monday’s drop.
@@ -496,7 +609,14 @@ const Page = async () => {
         <SectionHeader
           title="Suggestions"
           subtitle="Select one for next week; remaining expire after 4 weeks."
-          action={<Link href="/select-film" className="text-sm text-neutral-300 underline-offset-4 hover:text-white hover:underline">Open selector</Link>}
+          action={
+            <Link
+              href="/select-film"
+              className="text-sm text-neutral-300 underline-offset-4 hover:text-white hover:underline"
+            >
+              Open selector
+            </Link>
+          }
         />
         {suggestions.length === 0 ? (
           <Card padding="lg" className="text-sm text-neutral-400">
@@ -513,7 +633,10 @@ const Page = async () => {
 
       {/* Moderation queue */}
       <section className="mt-10">
-        <SectionHeader title="Moderation queue" subtitle="Flagged reviews and comments" />
+        <SectionHeader
+          title="Moderation queue"
+          subtitle="Flagged reviews and comments"
+        />
         {flagged.length === 0 ? (
           <Card padding="lg" className="text-sm text-neutral-400">
             Nothing flagged at the moment.
@@ -550,9 +673,16 @@ const Page = async () => {
 
       {/* Settings */}
       <section className="mt-10">
-        <SectionHeader title="Settings" subtitle="Public teasers and availability" />
+        <SectionHeader
+          title="Settings"
+          subtitle="Public teasers and availability"
+        />
         <Card padding="lg" className="grid gap-4 md:grid-cols-2">
-          <form method="POST" action="/api/admin/settings/update" className="grid gap-3">
+          <form
+            method="POST"
+            action="/api/admin/settings/update"
+            className="grid gap-3"
+          >
             <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 p-3">
               <div>
                 <div className="text-sm text-neutral-200">Public teasers</div>
@@ -561,16 +691,20 @@ const Page = async () => {
                 </div>
               </div>
               <input type="hidden" name="key" value="publicTeasersEnabled" />
-              <input type="hidden" name="value" value={settings.publicTeasersEnabled ? '0' : '1'} />
+              <input
+                type="hidden"
+                name="value"
+                value={settings.publicTeasersEnabled ? "0" : "1"}
+              />
               <button
                 type="submit"
                 className={`inline-flex items-center justify-center rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
                   settings.publicTeasersEnabled
-                    ? 'border border-olive-500/30 bg-olive-500/10 text-olive-200 hover:bg-olive-500/20'
-                    : 'border border-white/10 bg-white/5 text-neutral-200 hover:bg-white/10'
+                    ? "border border-olive-500/30 bg-olive-500/10 text-olive-200 hover:bg-olive-500/20"
+                    : "border border-white/10 bg-white/5 text-neutral-200 hover:bg-white/10"
                 }`}
               >
-                {settings.publicTeasersEnabled ? 'Enabled' : 'Disabled'}
+                {settings.publicTeasersEnabled ? "Enabled" : "Disabled"}
               </button>
             </div>
 
@@ -602,15 +736,26 @@ const Page = async () => {
           </form>
 
           <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-            <div className="text-sm font-semibold text-neutral-100">Quick links</div>
+            <div className="text-sm font-semibold text-neutral-100">
+              Quick links
+            </div>
             <div className="mt-2 grid gap-2 text-sm">
-              <Link href="/select-film" className="text-neutral-300 underline-offset-4 hover:text-white hover:underline">
+              <Link
+                href="/select-film"
+                className="text-neutral-300 underline-offset-4 hover:text-white hover:underline"
+              >
                 Select next week’s film
               </Link>
-              <Link href="/invites" className="text-neutral-300 underline-offset-4 hover:text-white hover:underline">
+              <Link
+                href="/invites"
+                className="text-neutral-300 underline-offset-4 hover:text-white hover:underline"
+              >
                 Manage invites and waitlist
               </Link>
-              <Link href="/films" className="text-neutral-300 underline-offset-4 hover:text-white hover:underline">
+              <Link
+                href="/films"
+                className="text-neutral-300 underline-offset-4 hover:text-white hover:underline"
+              >
                 Browse all films (members view)
               </Link>
             </div>

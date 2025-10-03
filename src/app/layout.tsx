@@ -1,6 +1,6 @@
 // app/layout.tsx
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono } from "next/font/google";
 import { QueryProvider } from "./provider";
 
@@ -23,6 +23,9 @@ export const metadata: Metadata = {
     icon: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
+};
+
+export const viewport: Viewport = {
   themeColor: "#0a0a0a",
 };
 
