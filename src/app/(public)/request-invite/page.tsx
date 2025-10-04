@@ -20,8 +20,16 @@ const getParam = (sp: PageProps["searchParams"], key: string, def = "") => {
   return (Array.isArray(v) ? v[0] : v) ?? def;
 };
 
-const errorMessage = (code?: string) => {
+const errorBannerMessage = (code?: string) => {
   switch (code) {
+    case "invalid_email":
+      return "Please enter a valid email address.";
+    case "about_too_short":
+      return "Tell us a bit more — the “About” field must be at least 50 characters.";
+    case "conduct_required":
+      return "You must agree to the code of conduct to continue.";
+    case "letterboxd_url":
+      return "Letterboxd/social must be a full URL (e.g., https://letterboxd.com/yourname).";
     case "invalid":
       return "Please check your entries and try again.";
     case "rate_limited":
@@ -44,6 +52,12 @@ const Page = async (props: any) => {
   // Prefill convenience (kept if your API redirects back with these)
   const preName = getParam(searchParams, "name");
   const preEmail = getParam(searchParams, "email");
+
+  // Inline field error flags
+  const errInvalidEmail = error === "invalid_email";
+  const errAboutShort = error === "about_too_short";
+  const errConduct = error === "conduct_required";
+  const errLetterboxd = error === "letterboxd_url";
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-10 md:py-14">
@@ -91,7 +105,7 @@ const Page = async (props: any) => {
         >
           <h3 className="text-white">Could not submit your request</h3>
           <p className="mt-2 text-sm text-neutral-200">
-            {errorMessage(error) ?? "Please try again."}
+            {errorBannerMessage(error) ?? "Please try again."}
           </p>
         </Card>
       ) : null}
@@ -150,8 +164,18 @@ const Page = async (props: any) => {
                 defaultValue={preEmail}
                 placeholder="you@example.com"
                 autoComplete="email"
-                className="w-full rounded-lg border border-white/10 bg-neutral-900/50 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-olive-400/40"
+                aria-invalid={errInvalidEmail ? "true" : "false"}
+                className={`w-full rounded-lg border bg-neutral-900/50 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 ${
+                  errInvalidEmail
+                    ? "border-red-500/40 focus:ring-red-400/40"
+                    : "border-white/10 focus:ring-olive-400/40"
+                }`}
               />
+              {errInvalidEmail ? (
+                <p className="mt-1 text-xs text-red-300">
+                  Please enter a valid email address.
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -169,8 +193,18 @@ const Page = async (props: any) => {
               placeholder="https://letterboxd.com/yourname"
               pattern="https?://.*"
               autoComplete="url"
-              className="w-full rounded-lg border border-white/10 bg-neutral-900/50 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-olive-400/40"
+              aria-invalid={errLetterboxd ? "true" : "false"}
+              className={`w-full rounded-lg border bg-neutral-900/50 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 ${
+                errLetterboxd
+                  ? "border-red-500/40 focus:ring-red-400/40"
+                  : "border-white/10 focus:ring-olive-400/40"
+              }`}
             />
+            {errLetterboxd ? (
+              <p className="mt-1 text-xs text-red-300">
+                Please enter a full URL (e.g., https://letterboxd.com/yourname).
+              </p>
+            ) : null}
           </div>
 
           <div>
@@ -189,11 +223,21 @@ const Page = async (props: any) => {
               rows={5}
               placeholder="What kind of films move you? Directors, movements, or eras you’re exploring?"
               aria-describedby="about-help"
-              className="w-full rounded-lg border border-white/10 bg-neutral-900/50 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-olive-400/40"
+              aria-invalid={errAboutShort ? "true" : "false"}
+              className={`w-full rounded-lg border bg-neutral-900/50 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 ${
+                errAboutShort
+                  ? "border-red-500/40 focus:ring-red-400/40"
+                  : "border-white/10 focus:ring-olive-400/40"
+              }`}
             />
             <p id="about-help" className="mt-1 text-xs text-neutral-500">
               Minimum 50 characters. Keep it under 2000 characters.
             </p>
+            {errAboutShort ? (
+              <p className="mt-1 text-xs text-red-300">
+                Please write at least 50 characters.
+              </p>
+            ) : null}
           </div>
 
           <div>
@@ -272,13 +316,21 @@ const Page = async (props: any) => {
               name="conduct"
               type="checkbox"
               required
-              className="mt-1 h-4 w-4 rounded border-white/20 bg-neutral-900/60 text-olive-500 focus:outline-none focus:ring-2 focus:ring-olive-400/40"
+              aria-invalid={errConduct ? "true" : "false"}
+              className={`mt-1 h-4 w-4 rounded border-white/20 bg-neutral-900/60 text-olive-500 focus:outline-none focus:ring-2 ${
+                errConduct ? "focus:ring-red-400/40" : "focus:ring-olive-400/40"
+              }`}
             />
             <label htmlFor="conduct" className="text-sm text-neutral-300">
               I agree to uphold a respectful, thoughtful tone; tag spoilers; and
               participate consistently.
             </label>
           </div>
+          {errConduct ? (
+            <p className="mt-1 text-xs text-red-300">
+              You must agree to the code of conduct.
+            </p>
+          ) : null}
 
           <div className="mt-2 flex items-center gap-3">
             <button

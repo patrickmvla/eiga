@@ -354,6 +354,7 @@ const Page = async (props: any) => {
       </section>
 
       {/* The Discourse */}
+
       <section className="mt-8">
         <SectionHeader
           title="The Discourse"
@@ -384,103 +385,169 @@ const Page = async (props: any) => {
           </Card>
         ) : null}
 
+        {/* Top-level new thread form */}
+        {me.hasReview ? (
+          <Card padding="lg" id="new-thread" className="mb-4">
+            <form
+              method="POST"
+              action="/api/discussions"
+              className="grid gap-2"
+            >
+              <input type="hidden" name="film_id" value={film.id} />
+              {/* Omit parent_id entirely to create a root thread */}
+              <label
+                htmlFor="new-thread-content"
+                className="text-xs text-neutral-400"
+              >
+                Start a new thread
+              </label>
+              <textarea
+                id="new-thread-content"
+                name="content"
+                rows={4}
+                placeholder="Open a thoughtful thread…"
+                className="w-full rounded-lg border border-white/10 bg-neutral-900/50 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-olive-400/40"
+                required
+                minLength={5}
+                maxLength={5000}
+              />
+              <div className="flex items-center justify-between gap-2">
+                <label className="inline-flex items-center gap-2 text-xs text-neutral-400">
+                  <input
+                    type="checkbox"
+                    name="has_spoilers"
+                    className="h-3.5 w-3.5 rounded border-white/20 bg-neutral-900/60 text-olive-500 focus:outline-none focus:ring-olive-400/40"
+                  />
+                  Spoilers
+                </label>
+                <div className="flex items-center gap-2">
+                  <label
+                    htmlFor="new-thread-ts"
+                    className="text-xs text-neutral-400"
+                  >
+                    Timestamp (s)
+                  </label>
+                  <input
+                    id="new-thread-ts"
+                    name="timestamp_reference"
+                    type="number"
+                    min={0}
+                    step={1}
+                    placeholder="e.g., 760"
+                    className="w-24 rounded-lg border border-white/10 bg-neutral-900/50 px-2 py-1.5 text-sm text-neutral-100 focus:outline-none focus:ring-2 focus:ring-olive-400/40"
+                  />
+                  <button
+                    type="submit"
+                    className="inline-flex items-center justify-center rounded-lg bg-olive-500 px-3 py-1.5 text-sm font-semibold text-neutral-950 transition-colors hover:bg-olive-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-olive-400/40"
+                  >
+                    Post thread
+                  </button>
+                </div>
+              </div>
+            </form>
+          </Card>
+        ) : null}
+
         <div
           className={`grid gap-4 md:grid-cols-2 ${
             !me.hasReview ? "pointer-events-none opacity-60" : ""
           }`}
         >
-          {threads.map((t) => (
-            <Card key={t.id} padding="lg">
-              <h3 className="text-sm font-semibold text-neutral-100">
-                {t.title || "Thread"}
-              </h3>
-              <div className="mt-3 grid gap-3">
-                {t.comments.map((c) => (
-                  <div key={c.id}>
-                    <CommentBlock
-                      user={c.user}
-                      content={c.content}
-                      hasSpoilers={c.hasSpoilers}
-                      timestampRef={c.timestampRef}
-                      reactions={c.reactions}
-                    />
-                    {c.replies?.length ? (
-                      <div className="mt-2 space-y-2 pl-4">
-                        {c.replies.map((r) => (
-                          <CommentBlock
-                            key={r.id}
-                            user={r.user}
-                            content={r.content}
-                            hasSpoilers={r.hasSpoilers}
-                            timestampRef={r.timestampRef}
-                            reactions={r.reactions}
-                          />
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-
-              {me.hasReview ? (
-                <form
-                  id="new-thread"
-                  method="POST"
-                  action="/api/discussions"
-                  className="mt-4 grid gap-2"
-                >
-                  <input type="hidden" name="film_id" value={film.id} />
-                  <input type="hidden" name="parent_id" value="" />
-                  <label
-                    htmlFor={`comment-${t.id}`}
-                    className="text-xs text-neutral-400"
-                  >
-                    Reply to thread
-                  </label>
-                  <textarea
-                    id={`comment-${t.id}`}
-                    name="content"
-                    rows={3}
-                    placeholder="Add a thoughtful reply…"
-                    className="w-full rounded-lg border border-white/10 bg-neutral-900/50 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-olive-400/40"
-                  />
-                  <div className="flex items-center justify-between gap-2">
-                    <label className="inline-flex items-center gap-2 text-xs text-neutral-400">
-                      <input
-                        type="checkbox"
-                        name="has_spoilers"
-                        className="h-3.5 w-3.5 rounded border-white/20 bg-neutral-900/60 text-olive-500 focus:outline-none focus:ring-olive-400/40"
+          {threads.map((t) => {
+            const rootId = t.comments?.[0]?.id ?? t.id; // reply to the root comment
+            return (
+              <Card key={t.id} padding="lg">
+                <h3 className="text-sm font-semibold text-neutral-100">
+                  {t.title || "Thread"}
+                </h3>
+                <div className="mt-3 grid gap-3">
+                  {t.comments.map((c) => (
+                    <div key={c.id}>
+                      <CommentBlock
+                        user={c.user}
+                        content={c.content}
+                        hasSpoilers={c.hasSpoilers}
+                        timestampRef={c.timestampRef}
+                        reactions={c.reactions}
                       />
-                      Spoilers
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <label
-                        htmlFor={`timestamp-${t.id}`}
-                        className="text-xs text-neutral-400"
-                      >
-                        Timestamp (s)
-                      </label>
-                      <input
-                        id={`timestamp-${t.id}`}
-                        name="timestamp_reference"
-                        type="number"
-                        min={0}
-                        step={1}
-                        placeholder="e.g., 760"
-                        className="w-24 rounded-lg border border-white/10 bg-neutral-900/50 px-2 py-1.5 text-sm text-neutral-100 focus:outline-none focus:ring-2 focus:ring-olive-400/40"
-                      />
-                      <button
-                        type="submit"
-                        className="inline-flex items-center justify-center rounded-lg bg-olive-500 px-3 py-1.5 text-sm font-semibold text-neutral-950 transition-colors hover:bg-olive-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-olive-400/40"
-                      >
-                        Reply
-                      </button>
+                      {c.replies?.length ? (
+                        <div className="mt-2 space-y-2 pl-4">
+                          {c.replies.map((r) => (
+                            <CommentBlock
+                              key={r.id}
+                              user={r.user}
+                              content={r.content}
+                              hasSpoilers={r.hasSpoilers}
+                              timestampRef={r.timestampRef}
+                              reactions={r.reactions}
+                            />
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
-                  </div>
-                </form>
-              ) : null}
-            </Card>
-          ))}
+                  ))}
+                </div>
+
+                {me.hasReview ? (
+                  <form
+                    id={`reply-thread-${t.id}`}
+                    method="POST"
+                    action="/api/discussions"
+                    className="mt-4 grid gap-2"
+                  >
+                    <input type="hidden" name="film_id" value={film.id} />
+                    <input type="hidden" name="parent_id" value={rootId} />
+                    <label
+                      htmlFor={`comment-${t.id}`}
+                      className="text-xs text-neutral-400"
+                    >
+                      Reply to thread
+                    </label>
+                    <textarea
+                      id={`comment-${t.id}`}
+                      name="content"
+                      rows={3}
+                      placeholder="Add a thoughtful reply…"
+                      className="w-full rounded-lg border border-white/10 bg-neutral-900/50 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-olive-400/40"
+                    />
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="inline-flex items-center gap-2 text-xs text-neutral-400">
+                        <input
+                          type="checkbox"
+                          name="has_spoilers"
+                          className="h-3.5 w-3.5 rounded border-white/20 bg-neutral-900/60 text-olive-500 focus:outline-none focus:ring-olive-400/40"
+                        />
+                        Spoilers
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <label
+                          htmlFor={`timestamp-${t.id}`}
+                          className="text-xs text-neutral-400"
+                        >
+                          Timestamp (s)
+                        </label>
+                        <input
+                          id={`timestamp-${t.id}`}
+                          name="timestamp_reference"
+                          type="number"
+                          min={0}
+                          step={1}
+                          placeholder="e.g., 760"
+                          className="w-24 rounded-lg border border-white/10 bg-neutral-900/50 px-2 py-1.5 text-sm text-neutral-100 focus:outline-none focus:ring-2 focus:ring-olive-400/40"
+                        />
+                        <button
+                          type="submit"
+                          className="inline-flex items-center justify-center rounded-lg bg-olive-500 px-3 py-1.5 text-sm font-semibold text-neutral-950 transition-colors hover:bg-olive-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-olive-400/40"
+                        >
+                          Reply
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                ) : null}
+              </Card>
+            );
+          })}
           {threads.length === 0 && (
             <Card padding="lg" className="text-sm text-neutral-400">
               No threads yet. Be the first to start one—after you post your

@@ -56,9 +56,6 @@ export const users = pgTable(
     joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow(),
     inviteCode: text("invite_code"),
     isActive: boolean("is_active").default(true),
-
-    // Optional: add name later if needed
-    // name: text('name'),
   },
   (t) => ({
     emailUnique: uniqueIndex("users_email_unique").on(t.email),
@@ -88,11 +85,6 @@ export const invites = pgTable(
     usedByIdx: index("invites_used_by_idx").on(t.usedBy),
   })
 );
-
-// Foreign ref from users.invite_code -> invites.code
-// Drizzle doesn't allow forward ref inline above, so add it here with SQL if needed in a migration.
-// For most apps, it's fine to leave as loose link or wire in a migration:
-// ALTER TABLE users ADD CONSTRAINT users_invite_code_fkey FOREIGN KEY (invite_code) REFERENCES invites(code);
 
 // Films
 export const films = pgTable(
@@ -162,8 +154,8 @@ export const discussions = pgTable(
     userId: uuid("user_id")
       .references(() => users.id, { onDelete: "cascade" })
       .notNull(),
-    // Remove the inline self-reference to break the TS cycle
-    parentId: integer("parent_id"), // self-FK added via migration (see below)
+    // self-FK added via migration if desired
+    parentId: integer("parent_id"),
     content: text("content").notNull(),
     isHighlighted: boolean("is_highlighted").default(false).notNull(),
     hasSpoilers: boolean("has_spoilers").default(false).notNull(),
@@ -226,8 +218,9 @@ export const reactions = pgTable(
 );
 
 // Watch status per member/film
+// CHANGED: table name -> "user_watch_status" to avoid conflict with enum type "watch_status"
 export const watchStatus = pgTable(
-  "watch_status",
+  "user_watch_status",
   {
     userId: uuid("user_id")
       .references(() => users.id, { onDelete: "cascade" })
@@ -241,32 +234,32 @@ export const watchStatus = pgTable(
   (t) => ({
     pk: primaryKey({
       columns: [t.userId, t.filmId],
-      name: "watch_status_pkey",
+      name: "user_watch_status_pkey",
     }),
-    userIdx: index("watch_status_user_idx").on(t.userId),
-    filmIdx: index("watch_status_film_idx").on(t.filmId),
+    userIdx: index("user_watch_status_user_idx").on(t.userId),
+    filmIdx: index("user_watch_status_film_idx").on(t.filmId),
   })
 );
 
 export const waitlist = pgTable(
-  'waitlist',
+  "waitlist",
   {
-    id: serial('id').primaryKey(),
-    name: text('name').notNull(),
-    email: text('email').notNull(),
-    letterboxd: text('letterboxd'),
-    about: text('about').notNull(),
-    threeFilms: text('three_films'),
-    timezone: text('timezone'),
-    availability: text('availability').notNull(), // 'weekly' | 'biweekly' | 'monthly'
-    hear: text('hear'),
-    userAgent: text('user_agent'),
-    ip: text('ip'),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    letterboxd: text("letterboxd"),
+    about: text("about").notNull(),
+    threeFilms: text("three_films"),
+    timezone: text("timezone"),
+    availability: text("availability").notNull(), // 'weekly' | 'biweekly' | 'monthly'
+    hear: text("hear"),
+    userAgent: text("user_agent"),
+    ip: text("ip"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (t) => ({
-    emailIdx: index('waitlist_email_idx').on(t.email),
-    createdIdx: index('waitlist_created_idx').on(t.createdAt),
+    emailIdx: index("waitlist_email_idx").on(t.email),
+    createdIdx: index("waitlist_created_idx").on(t.createdAt),
   })
 );
 

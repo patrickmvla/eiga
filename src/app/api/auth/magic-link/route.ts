@@ -1,17 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+// app/api/auth/magic-link/route.ts
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db/client";
 import { users } from "@/drizzle/schema";
 import { eq } from "drizzle-orm";
 import { MagicLinkRequestSchema } from "@/lib/validations/user.schema";
 import { buildMagicLink } from "@/lib/auth/utils";
-import {
-  EMAIL,
-  magicLinkHtml,
-  magicLinkSubject,
-  magicLinkText,
-} from "@/lib/auth/config";
+import { sendMagicLinkEmail } from "@/lib/email/send";
+
+function loginUrl(req: Request, params: Record<string, string>) {
+  const url = new URL("/login", req.url); // absolute URL (Next 15 requirement)
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  return url;
+}
 
 export async function POST(req: Request) {
   const form = await req.formData().catch(() => null);
@@ -21,7 +23,9 @@ export async function POST(req: Request) {
 
   const parsed = MagicLinkRequestSchema.safeParse(raw);
   if (!parsed.success) {
-    return NextResponse.redirect("/login?error=invalid_email", { status: 303 });
+    return NextResponse.redirect(loginUrl(req, { error: "invalid_email" }), {
+      status: 303,
+    });
   }
 
   const { email, callbackUrl } = parsed.data;
@@ -34,9 +38,8 @@ export async function POST(req: Request) {
     .limit(1);
   const u = row[0];
 
-  let link: string | null = null;
   if (u && u.isActive !== false) {
-    link = await buildMagicLink(
+    const link = await buildMagicLink(
       {
         id: u.id,
         email: u.email,
@@ -46,26 +49,15 @@ export async function POST(req: Request) {
       callbackUrl
     );
 
-    // Send email via Resend (optional)
     try {
-      if (process.env.RESEND_API_KEY) {
-        const { Resend } = await import("resend");
-        const resend = new Resend(process.env.RESEND_API_KEY);
-        await resend.emails.send({
-          from: EMAIL.from,
-          to: [email],
-          subject: magicLinkSubject(),
-          text: magicLinkText(link),
-          html: magicLinkHtml(link),
-        });
-      } else {
-        // Dev fallback: log to console
-        console.log("[magic-link]", link);
-      }
+      // Centralized Resend helper (logs in dev if RESEND_API_KEY is unset)
+      await sendMagicLinkEmail(email, link);
     } catch (e) {
-      console.warn("[magic-link] email send failed:", e);
+      if (process.env.NODE_ENV === "development") {
+        console.warn("[magic-link] email send failed:", e);
+      }
     }
   }
 
-  return NextResponse.redirect("/login?sent=1", { status: 303 });
+  return NextResponse.redirect(loginUrl(req, { sent: "1" }), { status: 303 });
 }

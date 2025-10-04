@@ -81,12 +81,27 @@ CREATE TABLE "users" (
 	"is_active" boolean DEFAULT true
 );
 --> statement-breakpoint
-CREATE TABLE "watch_status" (
+CREATE TABLE "waitlist" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"name" text NOT NULL,
+	"email" text NOT NULL,
+	"letterboxd" text,
+	"about" text NOT NULL,
+	"three_films" text,
+	"timezone" text,
+	"availability" text NOT NULL,
+	"hear" text,
+	"user_agent" text,
+	"ip" text,
+	"created_at" timestamp with time zone DEFAULT now()
+);
+--> statement-breakpoint
+CREATE TABLE "user_watch_status" (
 	"user_id" uuid NOT NULL,
 	"film_id" integer NOT NULL,
 	"status" "watch_status" DEFAULT 'not_watched' NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now(),
-	CONSTRAINT "watch_status_pkey" PRIMARY KEY("user_id","film_id")
+	CONSTRAINT "user_watch_status_pkey" PRIMARY KEY("user_id","film_id")
 );
 --> statement-breakpoint
 ALTER TABLE "discussions" ADD CONSTRAINT "discussions_film_id_films_id_fk" FOREIGN KEY ("film_id") REFERENCES "public"."films"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -99,8 +114,8 @@ ALTER TABLE "ratings" ADD CONSTRAINT "ratings_film_id_films_id_fk" FOREIGN KEY (
 ALTER TABLE "reactions" ADD CONSTRAINT "reactions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "reactions" ADD CONSTRAINT "reactions_discussion_id_discussions_id_fk" FOREIGN KEY ("discussion_id") REFERENCES "public"."discussions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "suggestions" ADD CONSTRAINT "suggestions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "watch_status" ADD CONSTRAINT "watch_status_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "watch_status" ADD CONSTRAINT "watch_status_film_id_films_id_fk" FOREIGN KEY ("film_id") REFERENCES "public"."films"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_watch_status" ADD CONSTRAINT "user_watch_status_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "user_watch_status" ADD CONSTRAINT "user_watch_status_film_id_films_id_fk" FOREIGN KEY ("film_id") REFERENCES "public"."films"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "discussions_film_idx" ON "discussions" USING btree ("film_id");--> statement-breakpoint
 CREATE INDEX "discussions_parent_idx" ON "discussions" USING btree ("parent_id");--> statement-breakpoint
 CREATE INDEX "discussions_user_idx" ON "discussions" USING btree ("user_id");--> statement-breakpoint
@@ -123,5 +138,7 @@ CREATE INDEX "suggestions_week_idx" ON "suggestions" USING btree ("week_suggeste
 CREATE UNIQUE INDEX "users_email_unique" ON "users" USING btree ("email");--> statement-breakpoint
 CREATE UNIQUE INDEX "users_username_unique" ON "users" USING btree ("username");--> statement-breakpoint
 CREATE INDEX "users_invite_code_idx" ON "users" USING btree ("invite_code");--> statement-breakpoint
-CREATE INDEX "watch_status_user_idx" ON "watch_status" USING btree ("user_id");--> statement-breakpoint
-CREATE INDEX "watch_status_film_idx" ON "watch_status" USING btree ("film_id");
+CREATE INDEX "waitlist_email_idx" ON "waitlist" USING btree ("email");--> statement-breakpoint
+CREATE INDEX "waitlist_created_idx" ON "waitlist" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "user_watch_status_user_idx" ON "user_watch_status" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "user_watch_status_film_idx" ON "user_watch_status" USING btree ("film_id");

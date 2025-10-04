@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-"use client";
+'use client';
 
+import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type Picked = {
@@ -17,8 +18,10 @@ type TMDBMovie = {
   poster_path?: string | null;
 };
 
-const posterUrlFor = (path?: string | null) =>
-  path ? `https://image.tmdb.org/t/p/w342${path}` : null;
+const posterUrlFor = (
+  path?: string | null,
+  size: 'w92' | 'w154' | 'w185' | 'w342' | 'w500' | 'w780' = 'w342'
+) => (path ? `https://image.tmdb.org/t/p/${size}${path}` : null);
 
 export const TmdbSearch = ({
   onPick,
@@ -55,13 +58,23 @@ export const TmdbSearch = ({
       try {
         setLoading(true);
         setErr(null);
-        // Adjust param name to your /api/tmdb route if needed (query vs. q).
         const url = `/api/tmdb?query=${encodeURIComponent(q.trim())}`;
         const res = await fetch(url, { signal: controller.signal });
         if (!res.ok) throw new Error(`TMDB fetch failed: ${res.status}`);
         const data = await res.json();
         const items: TMDBMovie[] = data.results ?? [];
-        setResults(items.slice(0, 8));
+
+        // De-duplicate by id
+        const uniq: TMDBMovie[] = [];
+        const seen = new Set<number>();
+        for (const it of items) {
+          if (!seen.has(it.id)) {
+            seen.add(it.id);
+            uniq.push(it);
+          }
+        }
+
+        setResults(uniq.slice(0, 8));
       } catch (e: any) {
         if (e.name !== "AbortError") {
           setErr("Could not fetch results.");
@@ -81,7 +94,7 @@ export const TmdbSearch = ({
       tmdbId: m.id,
       title: m.title,
       year: Number.isFinite(year) ? year : null,
-      posterUrl: posterUrlFor(m.poster_path),
+      posterUrl: posterUrlFor(m.poster_path, 'w342'),
     };
     setPicked(selection);
     onPick(selection);
@@ -142,18 +155,28 @@ export const TmdbSearch = ({
             <div className="p-3 text-sm text-neutral-400">No results yet.</div>
           ) : (
             <ul className="max-h-72 divide-y divide-white/10 overflow-auto">
-              {results.map((m) => {
-                const year = m.release_date
-                  ? Number(m.release_date.slice(0, 4))
-                  : null;
+              {results.map((m, idx) => {
+                const year = m.release_date ? Number(m.release_date.slice(0, 4)) : null;
+                const thumb = posterUrlFor(m.poster_path, 'w92');
                 return (
-                  <li key={m.id}>
+                  <li key={`${m.id}-${idx}`}>
                     <button
                       type="button"
                       onClick={() => handlePick(m)}
-                      className="flex w-full items-center justify-between gap-3 p-3 text-left hover:bg-white/5"
+                      className="flex w-full items-center gap-3 p-3 text-left hover:bg-white/5"
                     >
-                      <span className="truncate text-sm text-neutral-100">
+                      <div className="relative h-12 w-8 shrink-0 overflow-hidden rounded border border-white/10 bg-neutral-800">
+                        {thumb ? (
+                          <Image
+                            src={thumb}
+                            alt={`${m.title} poster`}
+                            fill
+                            sizes="32px"
+                            className="object-cover"
+                          />
+                        ) : null}
+                      </div>
+                      <span className="min-w-0 flex-1 truncate text-sm text-neutral-100">
                         {m.title}{" "}
                         {Number.isFinite(year) ? (
                           <span className="text-neutral-400">({year})</span>
