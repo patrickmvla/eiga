@@ -259,7 +259,10 @@ const fetchProfileData = async (
     db
       .select({
         filmId: ratings.filmId,
-        avgScore: dsql<number>`ROUND(AVG(${ratings.score})::numeric, 1)`,
+        // IMPORTANT: alias the raw SQL with .as('avg_score') to satisfy Drizzle
+        avgScore: dsql<number>`ROUND(AVG(${ratings.score})::numeric, 1)`.as(
+          "avg_score"
+        ),
       })
       .from(ratings)
       .groupBy(ratings.filmId)
@@ -269,8 +272,12 @@ const fetchProfileData = async (
     .with(ratingAgg)
     .select({
       contrarianScore: dsql<number | null>`
-        ROUND(AVG(ABS(${ratings.score} - COALESCE(${ratingAgg.avgScore}, ${ratings.score})))::numeric, 1)
-      `,
+      ROUND(
+        AVG(
+          ABS(${ratings.score} - COALESCE(${ratingAgg.avgScore}, ${ratings.score}))
+        )::numeric, 1
+      )
+    `,
     })
     .from(ratings)
     .leftJoin(ratingAgg, eq(ratingAgg.filmId, ratings.filmId))

@@ -1,5 +1,6 @@
 // app/(public)/philosophy/page.tsx
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Card } from '@/components/ui/Card';
 import { ButtonLink } from '@/components/ui/ButtonLink';
@@ -69,6 +70,26 @@ const Page = () => {
         </Card>
       </section>
 
+      {/* Why private & How films are chosen */}
+      <section className="mt-10 grid gap-4 md:grid-cols-2">
+        <Card padding="lg">
+          <h3 className="text-sm font-semibold text-neutral-100">Why private—and why small</h3>
+          <ul className="mt-2 list-disc pl-5 text-sm text-neutral-300">
+            <li>Accountability encourages care. When ten voices matter, each post matters.</li>
+            <li>Intimacy keeps discourse legible—ideas can breathe without being buried.</li>
+            <li>Continuity builds a shared vocabulary across weeks, years, and threads.</li>
+          </ul>
+        </Card>
+        <Card padding="lg">
+          <h3 className="text-sm font-semibold text-neutral-100">How we choose films</h3>
+          <ul className="mt-2 list-disc pl-5 text-sm text-neutral-300">
+            <li>Members suggest weekly; the admin curates for balance across decade, country, and form.</li>
+            <li>We mix canons with discoveries: documentaries, shorts, experimental, and popular cinema.</li>
+            <li>Accessibility matters—region availability and content advisories are considered.</li>
+          </ul>
+        </Card>
+      </section>
+
       {/* How the week works */}
       <section className="mt-10">
         <SectionHeader title="How a week works" />
@@ -106,29 +127,37 @@ const Page = () => {
         </Card>
       </section>
 
+      {/* What counts as a review */}
+      <section className="mt-10 grid gap-4 md:grid-cols-2">
+        <Card padding="lg">
+          <h3 className="text-sm font-semibold text-neutral-100">What counts as a review</h3>
+          <ul className="mt-2 list-disc pl-5 text-sm text-neutral-300">
+            <li>100–1000 words with citations of scenes, choices, or moments (not vibes alone).</li>
+            <li>Engage craft: staging, cutting, sound, performance, rhythm, writing, production design.</li>
+            <li>Bring context: history, influences, reception—but earn it with close viewing.</li>
+          </ul>
+        </Card>
+        <Card padding="lg">
+          <h3 className="text-sm font-semibold text-neutral-100">How we discuss</h3>
+          <ul className="mt-2 list-disc pl-5 text-sm text-neutral-300">
+            <li>Two-level threads keep focus; quote precisely and timestamp when possible.</li>
+            <li>Disagree well: interpret charitably, then critique clearly.</li>
+            <li>Flag spoilers, and prefer evidence over assertion.</li>
+          </ul>
+        </Card>
+      </section>
+
       {/* House rules */}
       <section className="mt-10">
         <SectionHeader title="House rules" />
         <Card padding="lg">
           <ul className="grid gap-2 text-sm text-neutral-300">
-            <li>
-              • Reviews come first: 100–1000 words before you join discussion threads.
-            </li>
-            <li>
-              • Keep it readable: threads are limited to two levels—enough for depth, not derailment.
-            </li>
-            <li>
-              • Tag spoilers and use timestamps for scene-specific talk.
-            </li>
-            <li>
-              • Argue in good faith. Critique ideas, not people. Civility is non-negotiable.
-            </li>
-            <li>
-              • Participation matters: prolonged inactivity may lead to removal to keep the circle engaged.
-            </li>
-            <li>
-              • Real names or consistent usernames—community trust over anonymity.
-            </li>
+            <li>• Reviews come first: 100–1000 words before you join discussion threads.</li>
+            <li>• Keep it readable: threads are limited to two levels—enough for depth, not derailment.</li>
+            <li>• Tag spoilers and use timestamps for scene-specific talk.</li>
+            <li>• Argue in good faith. Critique ideas, not people. Civility is non-negotiable.</li>
+            <li>• Participation matters: prolonged inactivity may lead to removal to keep the circle engaged.</li>
+            <li>• Real names or consistent usernames—community trust over anonymity.</li>
           </ul>
         </Card>
       </section>
@@ -160,8 +189,28 @@ const Page = () => {
           </Card>
         </div>
         <p className="mt-4 text-xs text-neutral-500">
-          Visitors can see titles and aggregates; member reviews and discussions remain private.
+          Metrics are descriptive, not prescriptive. Visitors see titles and aggregates; member reviews and discussions remain private.
         </p>
+      </section>
+
+      {/* Moderation & accessibility */}
+      <section className="mt-10 grid gap-4 md:grid-cols-2">
+        <Card padding="lg">
+          <h3 className="text-sm font-semibold text-neutral-100">Moderation & safety</h3>
+          <ul className="mt-2 list-disc pl-5 text-sm text-neutral-300">
+            <li>Firm boundaries around respect, harassment, and bigotry.</li>
+            <li>Clear red lines and swift intervention when needed.</li>
+            <li>Assume good faith; protect readerly attention.</li>
+          </ul>
+        </Card>
+        <Card padding="lg">
+          <h3 className="text-sm font-semibold text-neutral-100">Access & time zones</h3>
+          <ul className="mt-2 list-disc pl-5 text-sm text-neutral-300">
+            <li>Asynchronous by design; show up across the window that works for you.</li>
+            <li>Captioning and content advisories are encouraged in setups.</li>
+            <li>Availability notes help the group plan (region locks, rentals, physical media).</li>
+          </ul>
+        </Card>
       </section>
 
       {/* Join CTA */}
@@ -171,10 +220,16 @@ const Page = () => {
           We maintain a short waitlist to preserve the club’s size and rhythm. Tell us about your interests
           and viewing habits—when a seat opens, we’ll reach out.
         </p>
-        <div className="mt-4">
+        <div className="mt-4 flex items-center justify-center gap-2">
           <ButtonLink href="/request-invite" variant="primary" size="md">
             Request an invite
           </ButtonLink>
+          <Link
+            href="/archive"
+            className="text-sm text-neutral-300 underline-offset-4 hover:text-white hover:underline"
+          >
+            Browse the archive
+          </Link>
         </div>
       </section>
     </main>

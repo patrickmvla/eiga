@@ -2,6 +2,7 @@
 
 type PosterSize = 'w92' | 'w154' | 'w185' | 'w342' | 'w500' | 'w780' | 'original';
 type BackdropSize = 'w300' | 'w780' | 'w1280' | 'original';
+type ProfileSize = 'w45' | 'w185' | 'h632' | 'original';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 const TMDB_IMG_BASE = 'https://image.tmdb.org/t/p/';
@@ -73,6 +74,8 @@ export const buildPosterUrl = (path?: string | null, size: PosterSize = 'w342'):
   path ? `${TMDB_IMG_BASE}${size}${path}` : null;
 export const buildBackdropUrl = (path?: string | null, size: BackdropSize = 'w780'): string | null =>
   path ? `${TMDB_IMG_BASE}${size}${path}` : null;
+export const buildProfileUrl = (path?: string | null, size: ProfileSize = 'w185'): string | null =>
+  path ? `${TMDB_IMG_BASE}${size}${path}` : null;
 
 const parseYear = (dateStr?: string | null): number | null => {
   if (!dateStr) return null;
@@ -92,6 +95,21 @@ type TmdbMovieSearchItem = {
 type TmdbMovieSearchResponse = {
   page: number;
   results: TmdbMovieSearchItem[];
+  total_pages: number;
+  total_results: number;
+};
+
+type TmdbPersonSearchItem = {
+  id: number;
+  name: string;
+  profile_path?: string | null;
+  known_for_department?: string | null;
+  popularity?: number;
+};
+
+type TmdbPersonSearchResponse = {
+  page: number;
+  results: TmdbPersonSearchItem[];
   total_pages: number;
   total_results: number;
 };
@@ -136,6 +154,14 @@ export type SearchMovie = {
   releaseDate: string | null;
   posterPath: string | null;
   posterUrl: string | null;
+};
+
+export type SearchPerson = {
+  tmdbId: number;
+  name: string;
+  profilePath: string | null;
+  profileUrl: string | null;
+  knownFor: string | null;
 };
 
 export type MovieDetails = {
@@ -201,6 +227,38 @@ export const searchMovies = async (q: string, opts?: {
   });
 };
 
+// API: search people
+export const searchPerson = async (q: string, opts?: {
+  page?: number;
+  includeAdult?: boolean;
+  language?: string;
+}): Promise<SearchPerson[]> => {
+  const query = q.trim();
+  if (!query) return [];
+
+  const params = {
+    query,
+    include_adult: Boolean(opts?.includeAdult ?? false),
+    page: Math.max(1, Math.min(100, opts?.page ?? 1)),
+    language: opts?.language ?? 'en-US',
+  };
+
+  const key = `person:${params.language}:${params.page}:${query.toLowerCase()}`;
+  return withCache<SearchPerson[]>(key, 1000 * 30, async () => {
+    const data = await tmdbFetch<TmdbPersonSearchResponse>('/search/person', params);
+    return (data.results ?? []).slice(0, 5).map((p) => {
+      const profileUrl = buildProfileUrl(p.profile_path, 'w185');
+      return {
+        tmdbId: p.id,
+        name: p.name,
+        profilePath: p.profile_path ?? null,
+        profileUrl,
+        knownFor: p.known_for_department ?? null,
+      };
+    });
+  });
+};
+
 // API: movie details (+ optional append_to_response)
 export const getMovieDetails = async (
   tmdbId: number,
@@ -209,7 +267,7 @@ export const getMovieDetails = async (
   const id = Number(tmdbId);
   if (!Number.isFinite(id) || id <= 0) throw new Error('Invalid TMDB id');
 
-  // Always include credits; merge with caller’s append list
+  // Always include credits; merge with caller's append list
   const appendSet = new Set([...(opts?.append ?? []), 'credits']);
   const append = Array.from(appendSet).join(',');
 

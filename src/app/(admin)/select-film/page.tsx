@@ -1,10 +1,16 @@
+
 // app/(admin)/select-film/page.tsx
-import Image from 'next/image';
-import Link from 'next/link';
+import { SelectFilmWizard } from '@/components/admin/SelectFilmWizard';
+import { ButtonLink } from '@/components/ui/ButtonLink';
 import { Card } from '@/components/ui/Card';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { ButtonLink } from '@/components/ui/ButtonLink';
-import { SelectFilmWizard } from '@/components/admin/SelectFilmWizard';
+import Image from 'next/image';
+import Link from 'next/link';
+
+import { films, suggestions, users as usersTable } from '@/drizzle/schema';
+import { db } from '@/lib/db/client';
+import { getCurrentMondayYmd, getNextMondayYmd } from '@/lib/utils/helpers';
+import { desc, eq } from 'drizzle-orm';
 
 type Suggestion = {
   id: number;
@@ -13,90 +19,21 @@ type Suggestion = {
   year?: number | null;
   user: string;
   pitch: string;
-  weekSuggested: string; // ISO
+  weekSuggested: string; // ISO/ymd
   expiresAt: string; // ISO
 };
 
 type AdminSelectData = {
-  weekStart: string; // current Monday ISO
-  nextMonday: string; // YYYY-MM-DD
+  weekStart: string; // current Monday ISO/ymd
+  nextMonday: string; // YYYY-MM-DD for input[type="date"]
   upcoming: {
     id: number;
     title: string;
     year: number;
     posterUrl?: string | null;
-    weekStart: string; // ISO
+    weekStart: string; // ISO/ymd
   } | null;
   suggestions: Suggestion[];
-};
-
-// Mock fetch — replace with DB queries
-const fetchAdminSelectData = async (): Promise<AdminSelectData> => {
-  const now = new Date();
-  const day = now.getDay(); // 0 Sun, 1 Mon
-  const monday = new Date(now);
-  const diffToMon = (day + 6) % 7;
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(now.getDate() - diffToMon);
-
-  const nextMonDate = new Date(monday);
-  nextMonDate.setDate(monday.getDate() + 7);
-
-  // ISO date string for input[type="date"]
-  const yyyy = nextMonDate.getFullYear();
-  const mm = String(nextMonDate.getMonth() + 1).padStart(2, '0');
-  const dd = String(nextMonDate.getDate()).padStart(2, '0');
-  const nextMonday = `${yyyy}-${mm}-${dd}`;
-
-  const in21 = new Date(monday);
-  in21.setDate(monday.getDate() + 21);
-
-  return {
-    weekStart: monday.toISOString(),
-    nextMonday,
-    upcoming: {
-      id: 999,
-      title: 'Placeholder Upcoming',
-      year: 1974,
-      posterUrl: '/images/mock-1.jpg',
-      weekStart: nextMonDate.toISOString(),
-    },
-    suggestions: [
-      {
-        id: 1,
-        tmdbId: 37797,
-        title: 'La Cérémonie',
-        year: 1995,
-        user: 'agnes',
-        pitch:
-          'Class, literacy, and power refracted through performance—ties into our surveillance/secrets thread.',
-        weekSuggested: monday.toISOString(),
-        expiresAt: in21.toISOString(),
-      },
-      {
-        id: 2,
-        tmdbId: 14161,
-        title: 'Beau Travail',
-        year: 1999,
-        user: 'claire',
-        pitch:
-          'Bodies as choreography; masculinity under discipline; final dance as thesis. A formal pivot.',
-        weekSuggested: monday.toISOString(),
-        expiresAt: in21.toISOString(),
-      },
-      {
-        id: 3,
-        tmdbId: 807,
-        title: 'Seven Samurai',
-        year: 1954,
-        user: 'akira',
-        pitch:
-          'On structure and ensemble dynamics—connects to communal ethics and action form.',
-        weekSuggested: monday.toISOString(),
-        expiresAt: in21.toISOString(),
-      },
-    ],
-  };
 };
 
 type PageProps = {
@@ -107,6 +44,78 @@ const getParam = (sp: Record<string, string | string[] | undefined>, key: string
   const v = sp?.[key];
   return Array.isArray(v) ? v[0] : v;
 };
+
+// Real DB-backed fetch
+async function fetchAdminSelectData(): Promise<AdminSelectData> {
+  // Current and next week
+  const weekStartYmd = getCurrentMondayYmd();
+  const nextMondayYmd = getNextMondayYmd();
+
+  // Upcoming film scheduled for next Monday (if any)
+  const upcomingRow = await db
+    .select({
+      id: films.id,
+      title: films.title,
+      year: films.year,
+      posterUrl: films.posterUrl,
+      weekStart: films.weekStart,
+    })
+    .from(films)
+    .where(eq(films.weekStart, nextMondayYmd))
+    .limit(1)
+    .then((r) => r[0] ?? null);
+
+  const upcoming = upcomingRow
+    ? {
+        id: upcomingRow.id,
+        title: upcomingRow.title,
+        year: upcomingRow.year,
+        posterUrl: upcomingRow.posterUrl ?? null,
+        weekStart: String(upcomingRow.weekStart),
+      }
+    : null;
+
+  // Pending suggestions with usernames, newest first
+  const pending = await db
+    .select({
+      id: suggestions.id,
+      tmdbId: suggestions.tmdbId,
+      title: suggestions.title,
+      pitch: suggestions.pitch,
+      weekSuggested: suggestions.weekSuggested,
+      createdAt: suggestions.createdAt,
+      user: usersTable.username,
+    })
+    .from(suggestions)
+    .innerJoin(usersTable, eq(usersTable.id, suggestions.userId))
+    .where(eq(suggestions.status, 'pending'))
+    .orderBy(desc(suggestions.createdAt))
+    .limit(50);
+
+  const suggestionsMapped: Suggestion[] = pending.map((s) => {
+    const ws = String(s.weekSuggested ?? weekStartYmd);
+    // Expire 28 days after weekSuggested
+    const exp = new Date(ws);
+    exp.setDate(exp.getDate() + 28);
+    return {
+      id: s.id,
+      tmdbId: s.tmdbId,
+      title: s.title,
+      year: undefined,
+      user: s.user,
+      pitch: s.pitch,
+      weekSuggested: ws,
+      expiresAt: exp.toISOString(),
+    };
+  });
+
+  return {
+    weekStart: weekStartYmd,
+    nextMonday: nextMondayYmd, // matches YYYY-MM-DD for date input
+    upcoming,
+    suggestions: suggestionsMapped,
+  };
+}
 
 const Page = async ({ searchParams }: PageProps) => {
   const data = await fetchAdminSelectData();
@@ -191,7 +200,7 @@ const Page = async ({ searchParams }: PageProps) => {
                       >
                         Load
                       </Link>
-                      {/* Direct select (server action placeholder) */}
+                      {/* Direct select */}
                       <form method="POST" action="/api/admin/suggestions/select">
                         <input type="hidden" name="suggestion_id" value={s.id} />
                         <button

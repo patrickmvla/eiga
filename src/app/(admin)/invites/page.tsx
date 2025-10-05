@@ -1,8 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/(admin)/invites/page.tsx
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { ButtonLink } from '@/components/ui/ButtonLink';
+
+import { db } from '@/lib/db/client';
+import { invites, users as usersTable } from '@/drizzle/schema';
+import { desc, eq, sql as dsql } from 'drizzle-orm';
 
 type Invite = {
   code: string;
@@ -26,60 +31,72 @@ type AdminInvitesData = {
   waitlist: WaitlistEntry[];
 };
 
+// Best-effort fetch for settings
+async function fetchSeatsAvailable(): Promise<number> {
+  try {
+    const rows: any = await db.execute(
+      dsql`select key, value from "settings" where key = 'seatsAvailable' limit 1`
+    );
+    const rec =
+      Array.isArray(rows) ? rows[0] : ('rows' in (rows as any) ? (rows as any).rows?.[0] : null);
+    if (!rec) return 0;
+    const n = Number(rec.value);
+    return Number.isFinite(n) ? Math.max(0, Math.min(10, Math.floor(n))) : 0;
+  } catch {
+    return 0;
+  }
+}
+
 const fetchAdminInvitesData = async (): Promise<AdminInvitesData> => {
-  const now = new Date();
-  const iso = (d: Date) => d.toISOString();
+  // Invites list with usedBy username (if present)
+  const rows = await db
+    .select({
+      code: invites.code,
+      createdAt: invites.createdAt,
+      expiresAt: invites.expiresAt,
+      usedAt: invites.usedAt,
+      usedBy: usersTable.username, // nullable when usedBy is null
+    })
+    .from(invites)
+    .leftJoin(usersTable, eq(usersTable.id, invites.usedBy))
+    .orderBy(desc(invites.createdAt))
+    .limit(200);
 
-  const in14 = new Date(now);
-  in14.setDate(now.getDate() + 14);
+  const invs: Invite[] = rows.map((r) => ({
+    code: r.code,
+    createdAt: String(r.createdAt),
+    expiresAt: String(r.expiresAt),
+    usedAt: r.usedAt ? String(r.usedAt) : null,
+    usedBy: r.usedBy ?? null,
+  }));
 
-  const in30 = new Date(now);
-  in30.setDate(now.getDate() + 30);
+  // Waitlist (best-effort: table may not exist)
+  let waitlist: WaitlistEntry[] = [];
+  try {
+    const wrows: any = await db.execute(
+      dsql`select id, name, email, letterboxd, about, created_at from "waitlist" order by created_at desc limit 50`
+    );
+    const arr =
+      Array.isArray(wrows) ? (wrows as any) : ('rows' in (wrows as any) ? (wrows as any).rows : []);
+    waitlist = (arr as any[]).map((w) => ({
+      id: Number(w.id),
+      name: String(w.name),
+      email: String(w.email),
+      letterboxd: w.letterboxd ? String(w.letterboxd) : null,
+      about: String(w.about),
+      createdAt: String(w.created_at ?? w.createdAt ?? new Date().toISOString()),
+    }));
+  } catch {
+    // table may not exist; leave waitlist empty
+    waitlist = [];
+  }
 
-  const ago2 = new Date(now);
-  ago2.setDate(now.getDate() - 2);
+  const seatsAvailable = await fetchSeatsAvailable();
 
   return {
-    seatsAvailable: 2,
-    invites: [
-      {
-        code: 'EIGA-9X7Q-K2LM',
-        createdAt: iso(now),
-        expiresAt: iso(in14),
-      },
-      {
-        code: 'EIGA-1ABC-7777',
-        createdAt: iso(now),
-        expiresAt: iso(in30),
-      },
-      {
-        code: 'EIGA-USED-1234',
-        createdAt: iso(ago2),
-        expiresAt: iso(in30),
-        usedBy: 'agnes',
-        usedAt: iso(ago2),
-      },
-    ],
-    waitlist: [
-      {
-        id: 101,
-        name: 'Rhea',
-        email: 'rhea@example.com',
-        letterboxd: 'https://letterboxd.com/rhea',
-        about:
-          'Exploring Taiwanese New Wave and 70s American paranoia thrillers. Yang’s scope, Coppola’s soundscapes, and Akerman’s rigor pulled me into form. Interested in shot duration and repetition.',
-        createdAt: iso(ago2),
-      },
-      {
-        id: 102,
-        name: 'Jon',
-        email: 'jon@example.com',
-        letterboxd: '',
-        about:
-          'Kurosawa’s staging and Claire Denis’ choreography are my north stars. Looking to deepen on sound design analysis and production histories.',
-        createdAt: iso(now),
-      },
-    ],
+    seatsAvailable,
+    invites: invs,
+    waitlist,
   };
 };
 

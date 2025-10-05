@@ -1,0 +1,203 @@
+// app/(members)/profile/[username]/edit/page.tsx
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { Card } from "@/components/ui/Card";
+import { ButtonLink } from "@/components/ui/ButtonLink";
+import { auth } from "@/lib/auth/utils";
+import { db } from "@/lib/db/client";
+import { users } from "@/drizzle/schema";
+import { eq } from "drizzle-orm";
+
+type PageProps = {
+  params: Promise<{ username: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const getParam = (
+  sp: Record<string, string | string[] | undefined>,
+  key: string,
+  def = ""
+) => {
+  const v = sp?.[key];
+  return (Array.isArray(v) ? v[0] : v) ?? def;
+};
+
+const errorMessage = (code?: string) => {
+  switch (code) {
+    case "invalid":
+      return "Please check your entries and try again.";
+    case "username_in_use":
+      return "That username is taken. Please choose another.";
+    case "forbidden":
+      return "You can only edit your own profile.";
+    case "server":
+      return "Something went wrong. Please try again shortly.";
+    default:
+      return null;
+  }
+};
+
+const Page = async ({ params, searchParams }: PageProps) => {
+  const { username } = await params;
+  
+  const session = await auth();
+  if (!session?.user) {
+    redirect(`/login?callbackUrl=/profile/${username}/edit`);
+  }
+
+  const isAdmin = session.user.role === "admin";
+  const isMe =
+    session.user.username.toLowerCase() === username.toLowerCase();
+  if (!isMe && !isAdmin) {
+    redirect(`/profile/${username}?error=forbidden`);
+  }
+
+  // Load current user by username
+  const row = await db
+    .select({
+      id: users.id,
+      username: users.username,
+      avatarUrl: users.avatarUrl,
+    })
+    .from(users)
+    .where(eq(users.username, username))
+    .limit(1);
+
+  const u = row[0];
+  if (!u) notFound();
+
+  // Await searchParams (Next 15 requirement)
+  const sp = await searchParams;
+  const saved = getParam(sp, "saved") === "1";
+  const error = getParam(sp, "error") || undefined;
+
+  return (
+    <main className="mx-auto w-full max-w-3xl px-4 py-10 md:py-14">
+      <SectionHeader
+        title="Edit profile"
+        subtitle="Update your public profile details."
+        action={
+          <ButtonLink
+            href={`/profile/${u.username}`}
+            variant="outline"
+            size="sm"
+          >
+            Back to profile
+          </ButtonLink>
+        }
+      />
+
+      {saved ? (
+        <Card
+          padding="lg"
+          className="mb-6 border-olive-500/30 bg-olive-500/10"
+          aria-live="polite"
+        >
+          <h3 className="text-white">Profile updated</h3>
+          <p className="mt-2 text-sm text-neutral-300">
+            Your changes are saved.
+          </p>
+        </Card>
+      ) : null}
+
+      {error ? (
+        <Card
+          padding="lg"
+          className="mb-6 border-red-500/30 bg-red-500/10"
+          aria-live="assertive"
+        >
+          <h3 className="text-white">Could not update profile</h3>
+          <p className="mt-2 text-sm text-neutral-300">
+            {errorMessage(error) ?? "Please try again."}
+          </p>
+        </Card>
+      ) : null}
+
+      <Card padding="lg">
+        <form
+          method="POST"
+          action="/api/profile/update"
+          acceptCharset="UTF-8"
+          className="grid gap-4"
+          noValidate
+        >
+          {/* Honeypot */}
+          <input
+            type="text"
+            name="website"
+            tabIndex={-1}
+            autoComplete="off"
+            className="absolute left-[-9999px] top-[-9999px] h-0 w-0 opacity-0"
+            aria-hidden="true"
+          />
+
+          {/* Needed to authorize server route and compute redirect */}
+          <input type="hidden" name="current_username" value={u.username} />
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label
+                htmlFor="username"
+                className="mb-1 block text-xs text-neutral-400"
+              >
+                Username
+              </label>
+              <input
+                id="username"
+                name="username"
+                minLength={3}
+                maxLength={20}
+                pattern="^[A-Za-z0-9_]+$"
+                required
+                defaultValue={u.username}
+                placeholder="e.g., mizoguchi_fan"
+                className="w-full rounded-lg border border-white/10 bg-neutral-900/50 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-olive-400/40"
+              />
+              <p className="mt-1 text-xs text-neutral-500">
+                3–20 characters, letters/numbers/underscore.
+              </p>
+            </div>
+
+            <div>
+              <label
+                htmlFor="avatar_url"
+                className="mb-1 block text-xs text-neutral-400"
+              >
+                Avatar URL (optional)
+              </label>
+              <input
+                id="avatar_url"
+                name="avatar_url"
+                type="url"
+                defaultValue={u.avatarUrl ?? ""}
+                placeholder="https://…"
+                className="w-full rounded-lg border border-white/10 bg-neutral-900/50 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-olive-400/40"
+              />
+              <p className="mt-1 text-xs text-neutral-500">
+                Public image URL. Leave blank to keep current avatar.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-2 flex items-center gap-3">
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center rounded-lg bg-olive-500 px-4 py-2 text-sm font-semibold text-neutral-950 transition-colors hover:bg-olive-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-olive-400/40"
+            >
+              Save changes
+            </button>
+            <Link
+              href={`/profile/${u.username}`}
+              className="text-sm text-neutral-300 underline-offset-4 hover:text-white hover:underline"
+            >
+              Cancel
+            </Link>
+          </div>
+        </form>
+      </Card>
+    </main>
+  );
+};
+
+export default Page;

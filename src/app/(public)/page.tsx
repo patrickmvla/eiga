@@ -1,3 +1,4 @@
+// app/(public)/page.tsx
 import Link from "next/link";
 import Image from "next/image";
 
@@ -14,114 +15,15 @@ import { buildPosterUrl } from "@/lib/utils/tmdb";
 
 export const revalidate = 3600;
 
-// Fallback strictly typed to PublicLandingData (posterUrl must be string | null)
-const fallbackData = (): PublicLandingData => ({
-  currentFilm: {
-    id: 101,
-    title: "In the Mood for Love",
-    year: 2000,
-    posterUrl: "/images/mock-poster.jpg",
-    weekStart: "2000-01-03",
-  },
-  seatsAvailable: 3,
-  stats: {
-    members: 7,
-    capacity: 10,
-    participation: 82,
-    avgReviewLength: 284,
-  },
-  excerpts: [
-    {
-      id: 1,
-      text: "A masterclass in restraint—the spaces between gestures say more than dialogue ever could.",
-    },
-    {
-      id: 2,
-      text: "The framing traps characters within memories; it’s the camera that remembers what they try to forget.",
-    },
-    {
-      id: 3,
-      text: "Sound design as narration: the hallway footsteps become the film’s heartbeat.",
-    },
-  ],
-  recentFilms: [
-    {
-      id: 201,
-      title: "The Conversation",
-      year: 1974,
-      posterUrl: "/images/mock-1.jpg",
-      avgScore: 8.6,
-      dissent: 1.2,
-    },
-    {
-      id: 202,
-      title: "Celine and Julie Go Boating",
-      year: 1974,
-      posterUrl: "/images/mock-2.jpg",
-      avgScore: 7.9,
-      dissent: 2.1,
-    },
-    {
-      id: 203,
-      title: "Memories of Murder",
-      year: 2003,
-      posterUrl: "/images/mock-3.jpg",
-      avgScore: 8.8,
-      dissent: 0.9,
-    },
-    {
-      id: 204,
-      title: "The Red Shoes",
-      year: 1948,
-      posterUrl: "/images/mock-4.jpg",
-      avgScore: 8.2,
-      dissent: 1.7,
-    },
-    {
-      id: 205,
-      title: "A Brighter Summer Day",
-      year: 1991,
-      posterUrl: "/images/mock-5.jpg",
-      avgScore: 8.9,
-      dissent: 1.0,
-    },
-    {
-      id: 206,
-      title: "The Ascent",
-      year: 1977,
-      posterUrl: "/images/mock-6.jpg",
-      avgScore: 8.1,
-      dissent: 2.3,
-    },
-    {
-      id: 207,
-      title: "La Ceremonie",
-      year: 1995,
-      posterUrl: "/images/mock-7.jpg",
-      avgScore: 7.7,
-      dissent: 2.6,
-    },
-    {
-      id: 208,
-      title: "Killer of Sheep",
-      year: 1978,
-      posterUrl: "/images/mock-8.jpg",
-      avgScore: 8.0,
-      dissent: 1.5,
-    },
-  ],
-});
-
-// Normalize any TMDB path to a full image URL; keep local placeholders and absolute URLs as-is
+// Normalize TMDB poster paths to full URLs; anything else returns null
 const normalizePoster = (
   url?: string | null,
   tmdbSize: "w92" | "w154" | "w185" | "w342" | "w500" | "w780" = "w342"
-) => {
+): string | null => {
   if (!url) return null;
-  if (url.startsWith("http")) return url; // already absolute (likely TMDB)
-  if (url.startsWith("/images/")) return url; // local placeholder
-  if (url.startsWith("/")) return buildPosterUrl(url, tmdbSize); // TMDB path
-  return url;
+  if (url.startsWith("http")) return url; // already absolute TMDB or remote
+  if (url.startsWith("/")) return buildPosterUrl(url, tmdbSize); // TMDB path -> URL
+  return null;
 };
 
 const DissentIndex = ({
@@ -139,12 +41,8 @@ const DissentIndex = ({
   return (
     <Card padding="lg" className="mt-6">
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-neutral-100">
-          Dissent Index
-        </h3>
-        <span className="text-xs text-neutral-500">
-          Most controversial lately
-        </span>
+        <h3 className="text-sm font-semibold text-neutral-100">Dissent Index</h3>
+        <span className="text-xs text-neutral-500">Most controversial lately</span>
       </div>
       <div className="grid gap-2">
         {ranked.map((f) => (
@@ -156,26 +54,33 @@ const DissentIndex = ({
               {f.title} <span className="text-neutral-400">({f.year})</span>
             </div>
             <span className="ml-2 inline-flex items-center gap-1 rounded-md bg-white/10 px-2 py-0.5 text-xs text-neutral-200">
-              <span className="tabular-nums">
-                {(f.dissent ?? 0).toFixed(1)}
-              </span>
+              <span className="tabular-nums">{(f.dissent ?? 0).toFixed(1)}</span>
               <span className="text-neutral-400">dissent</span>
             </span>
           </div>
         ))}
       </div>
       <p className="mt-2 text-xs text-neutral-500">
-        “Dissent” reflects how divided the group was (standard deviation of
-        scores).
+        “Dissent” reflects how divided the group was (standard deviation of scores).
       </p>
     </Card>
   );
 };
 
 const Page = async () => {
-  const data =
-    (await getPublicLandingData().catch(() => null)) ?? fallbackData();
-  const { currentFilm, seatsAvailable, stats, excerpts, recentFilms } = data;
+  // No mock fallback — show neutral UI if data is unavailable
+  let data: PublicLandingData | null = null;
+  try {
+    data = await getPublicLandingData();
+  } catch {
+    data = null;
+  }
+
+  const currentFilm = data?.currentFilm ?? null;
+  const seatsAvailable = data?.seatsAvailable ?? 0;
+  const stats = data?.stats ?? { members: 0, capacity: 10, participation: 0, avgReviewLength: 0 };
+  const excerpts = data?.excerpts ?? [];
+  const recentFilms = data?.recentFilms ?? [];
 
   // Normalize posters to TMDB where applicable
   const heroPoster = normalizePoster(currentFilm?.posterUrl, "w780");
@@ -202,8 +107,8 @@ const Page = async () => {
               Eiga — a private cinema club for serious film discourse
             </h1>
             <p className="mt-3 text-pretty text-neutral-300 md:text-lg">
-              Ten members. One film a week. Thoughtful reviews before
-              discussion. Curated, intimate, and spoiler-savvy.
+              Ten members. One film a week. Thoughtful reviews before discussion.
+              Curated, intimate, and spoiler-savvy.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -213,17 +118,12 @@ const Page = async () => {
               <ButtonLink href="/archive" variant="outline" size="md">
                 Browse archive
               </ButtonLink>
-              <SeatBadge
-                seatsAvailable={seatsAvailable}
-                capacity={stats.capacity}
-              />
+              <SeatBadge seatsAvailable={seatsAvailable} capacity={stats.capacity} />
             </div>
           </div>
 
           <div className="flex flex-col items-start gap-2 rounded-xl border border-white/10 bg-black/30 p-4">
-            <div className="text-xs uppercase tracking-wide text-neutral-400">
-              This week’s film
-            </div>
+            <div className="text-xs uppercase tracking-wide text-neutral-400">This week’s film</div>
             {currentFilm ? (
               <div className="flex items-center gap-3">
                 <div className="relative h-16 w-11 overflow-hidden rounded-md border border-white/10 bg-neutral-800">
@@ -239,15 +139,11 @@ const Page = async () => {
                 </div>
                 <div>
                   <div className="font-semibold">{currentFilm.title}</div>
-                  <div className="text-sm text-neutral-400">
-                    {currentFilm.year}
-                  </div>
+                  <div className="text-sm text-neutral-400">{currentFilm.year}</div>
                 </div>
               </div>
             ) : (
-              <div className="text-sm text-neutral-400">
-                New selection drops Monday.
-              </div>
+              <div className="text-sm text-neutral-400">New selection drops Monday.</div>
             )}
 
             <div className="mt-2 grid grid-cols-3 gap-3 text-xs text-neutral-300">
@@ -258,15 +154,11 @@ const Page = async () => {
                 <div className="text-neutral-400">Members</div>
               </Card>
               <Card padding="sm" className="text-center">
-                <div className="tabular-nums text-sm">
-                  {stats.participation}%
-                </div>
+                <div className="tabular-nums text-sm">{stats.participation}%</div>
                 <div className="text-neutral-400">Participation</div>
               </Card>
               <Card padding="sm" className="text-center">
-                <div className="tabular-nums text-sm">
-                  {stats.avgReviewLength}
-                </div>
+                <div className="tabular-nums text-sm">{stats.avgReviewLength}</div>
                 <div className="text-neutral-400">Avg words</div>
               </Card>
             </div>
@@ -321,8 +213,8 @@ const Page = async () => {
       <section className="mt-12 rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.03] p-6 text-center md:p-10">
         <h3 className="text-xl font-semibold">Interested in joining Eiga?</h3>
         <p className="mx-auto mt-2 max-w-2xl text-neutral-300">
-          We keep it small for thoughtful discourse. Request an invite, share a
-          bit about your tastes, and we’ll reach out when a seat opens.
+          We keep it small for thoughtful discourse. Request an invite, share a bit about your tastes,
+          and we’ll reach out when a seat opens.
         </p>
         <div className="mt-4">
           <ButtonLink href="/request-invite" variant="primary" size="md">

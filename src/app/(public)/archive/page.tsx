@@ -42,70 +42,6 @@ const buildQuery = (params: Record<string, string | undefined>) => {
   return q ? `?${q}` : '';
 };
 
-// Fallback mock data used only if DB query fails
-const MOCK_ARCHIVE: PublicArchiveItem[] = [
-  { id: 201, title: 'The Conversation', year: 1974, avgScore: 8.6, dissent: 1.2, reviewsCount: 9 },
-  { id: 202, title: 'Celine and Julie Go Boating', year: 1974, avgScore: 7.9, dissent: 2.1, reviewsCount: 8 },
-  { id: 203, title: 'Memories of Murder', year: 2003, avgScore: 8.8, dissent: 0.9, reviewsCount: 9 },
-  { id: 204, title: 'The Red Shoes', year: 1948, avgScore: 8.2, dissent: 1.7, reviewsCount: 10 },
-  { id: 205, title: 'A Brighter Summer Day', year: 1991, avgScore: 8.9, dissent: 1.0, reviewsCount: 9 },
-  { id: 206, title: 'The Ascent', year: 1977, avgScore: 8.1, dissent: 2.3, reviewsCount: 7 },
-  { id: 207, title: 'La Cérémonie', year: 1995, avgScore: 7.7, dissent: 2.6, reviewsCount: 8 },
-  { id: 208, title: 'Killer of Sheep', year: 1978, avgScore: 8.0, dissent: 1.5, reviewsCount: 9 },
-  { id: 209, title: 'In the Mood for Love', year: 2000, avgScore: 9.1, dissent: 1.3, reviewsCount: 10 },
-  { id: 210, title: 'The Mirror', year: 1975, avgScore: 8.3, dissent: 2.0, reviewsCount: 8 },
-  { id: 211, title: 'Mulholland Dr.', year: 2001, avgScore: 8.7, dissent: 2.2, reviewsCount: 9 },
-  { id: 212, title: 'Stalker', year: 1979, avgScore: 8.4, dissent: 1.8, reviewsCount: 9 },
-  { id: 213, title: 'Persona', year: 1966, avgScore: 8.5, dissent: 2.4, reviewsCount: 9 },
-  { id: 214, title: 'Seven Samurai', year: 1954, avgScore: 9.0, dissent: 1.1, reviewsCount: 10 },
-  { id: 215, title: 'The Godfather', year: 1972, avgScore: 9.2, dissent: 0.8, reviewsCount: 10 },
-  { id: 216, title: 'The Tree of Life', year: 2011, avgScore: 7.8, dissent: 2.8, reviewsCount: 7 },
-  { id: 217, title: 'Moonlight', year: 2016, avgScore: 8.5, dissent: 1.2, reviewsCount: 9 },
-  { id: 218, title: 'Parasite', year: 2019, avgScore: 8.9, dissent: 1.4, reviewsCount: 10 },
-  { id: 219, title: 'Jeanne Dielman, 23, quai du Commerce, 1080 Bruxelles', year: 1975, avgScore: 8.1, dissent: 2.5, reviewsCount: 8 },
-  { id: 220, title: 'Beau Travail', year: 1999, avgScore: 8.2, dissent: 2.0, reviewsCount: 8 },
-];
-
-// Fallback helpers
-const applyFiltersLocal = (
-  items: PublicArchiveItem[],
-  {
-    q,
-    filter,
-    decade,
-  }: { q: string; filter: ArchiveFilter; decade: string }
-) => {
-  let out = items;
-  if (q) {
-    const needle = q.toLowerCase();
-    out = out.filter((f) => f.title.toLowerCase().includes(needle));
-  }
-  if (filter === 'consensus') out = out.filter((f) => (f.dissent ?? 0) < 1.2);
-  if (filter === 'controversial') out = out.filter((f) => (f.dissent ?? 0) > 2.0);
-  if (decade && decade !== 'all') {
-    const base = parseInt(decade, 10);
-    if (!Number.isNaN(base)) out = out.filter((f) => f.year >= base && f.year < base + 10);
-  }
-  return out;
-};
-
-const applySortLocal = (items: PublicArchiveItem[], sort: ArchiveSort) => {
-  const arr = [...items];
-  switch (sort) {
-    case 'rating':
-      return arr.sort((a, b) => (b.avgScore ?? -Infinity) - (a.avgScore ?? -Infinity) || b.year - a.year);
-    case 'dissent':
-      return arr.sort((a, b) => (b.dissent ?? -Infinity) - (a.dissent ?? -Infinity) || b.year - a.year);
-    case 'alpha':
-      return arr.sort((a, b) => a.title.localeCompare(b.title));
-    case 'oldest':
-      return arr.sort((a, b) => a.year - b.year || a.title.localeCompare(b.title));
-    case 'recent':
-    default:
-      return arr.sort((a, b) => b.year - a.year || a.title.localeCompare(b.title));
-  }
-};
-
 const FilmRow = ({ film }: { film: PublicArchiveItem }) => (
   <Card padding="md" className="flex items-center justify-between gap-4">
     <div className="min-w-0">
@@ -290,7 +226,7 @@ const Paginator = ({
 };
 
 const Page = async ({ searchParams }: PageProps) => {
-  // Await the params per Next 15 API
+  // Await params (Next 15)
   const sp = await searchParams;
 
   const q = getParam(sp, 'q');
@@ -299,8 +235,8 @@ const Page = async ({ searchParams }: PageProps) => {
   const decade = getParam(sp, 'decade', 'all');
   const page = toInt(getParam(sp, 'page'), 1);
 
-  // Try DB first
   const decadeOpt = decade !== 'all' && /^\d{4}$/.test(decade) ? Number(decade) : ('all' as const);
+
   const result = await getPublicArchive({
     q,
     filter,
@@ -310,20 +246,8 @@ const Page = async ({ searchParams }: PageProps) => {
     perPage,
   }).catch(() => null);
 
-  let total = 0;
-  let items: PublicArchiveItem[] = [];
-
-  if (result) {
-    total = result.total;
-    items = result.items;
-  } else {
-    // Fallback (DB not ready)
-    const filtered = applyFiltersLocal(MOCK_ARCHIVE, { q, filter, decade });
-    const sorted = applySortLocal(filtered, sort);
-    total = sorted.length;
-    const start = (page - 1) * perPage;
-    items = sorted.slice(start, start + perPage);
-  }
+  const total = result?.total ?? 0;
+  const items: PublicArchiveItem[] = result?.items ?? [];
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-10 md:py-14">

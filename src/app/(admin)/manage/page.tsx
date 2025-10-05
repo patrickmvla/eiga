@@ -1,11 +1,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // app/(admin)/manage/page.tsx
-import Image from "next/image";
-import Link from "next/link";
+import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Card } from "@/components/ui/Card";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import { ButtonLink } from "@/components/ui/ButtonLink";
+import Image from "next/image";
+import Link from "next/link";
 
+import {
+  films,
+  ratings,
+  suggestions,
+  users as usersTable,
+} from "@/drizzle/schema";
+import { db } from "@/lib/db/client";
+import { CLUB_CAPACITY } from "@/lib/db/queries"; // 10 seats policy
+import { getCurrentMondayYmd } from "@/lib/utils/helpers";
+import { desc, sql as dsql, eq } from "drizzle-orm";
+
+// Types used by the UI
 type Suggestion = {
   id: number;
   tmdbId: number;
@@ -51,7 +63,7 @@ type Member = {
 };
 
 type AdminManageData = {
-  weekStart: string; // Monday 00:00 ISO
+  weekStart: string; // Monday 00:00 (YYYY-MM-DD or ISO acceptable for Date())
   currentFilm: {
     id: number;
     title: string;
@@ -78,173 +90,7 @@ type AdminManageData = {
   };
 };
 
-// MOCK — replace with DB queries (Supabase/Drizzle)
-const fetchAdminManageData = async (): Promise<AdminManageData> => {
-  const now = new Date();
-  const day = now.getDay(); // 0 Sun, 1 Mon
-  const monday = new Date(now);
-  const diffToMon = (day + 6) % 7;
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(now.getDate() - diffToMon);
-
-  const in7 = new Date(monday);
-  in7.setDate(monday.getDate() + 7);
-
-  const in21 = new Date(monday);
-  in21.setDate(monday.getDate() + 21);
-
-  return {
-    weekStart: monday.toISOString(),
-    currentFilm: {
-      id: 101,
-      title: "In the Mood for Love",
-      year: 2000,
-      director: "Wong Kar-wai",
-      runtime: 98,
-      posterUrl: "/images/mock-poster.jpg",
-      adminIntro:
-        "Restraint as romance, memory as mise-en-scène. Watch doorways, corridors, and recurring motifs in music and costume.",
-      groupAvg: 8.6,
-      dissent: 1.3,
-    },
-    stats: {
-      members: 9,
-      capacity: 10,
-      watchedCount: 6,
-      participation: 82,
-    },
-    suggestions: [
-      {
-        id: 1,
-        tmdbId: 37797,
-        title: "La Cérémonie",
-        year: 1995,
-        user: "agnes",
-        pitch:
-          "Class, literacy, and power refracted through performance—pairs well with earlier discussions of surveillance and secrets.",
-        weekSuggested: monday.toISOString(),
-        expiresAt: in21.toISOString(),
-      },
-      {
-        id: 2,
-        tmdbId: 14161,
-        title: "Beau Travail",
-        year: 1999,
-        user: "claire",
-        pitch:
-          "Bodies as choreography; masculinity under discipline; final dance as thesis. A formal pivot for the group.",
-        weekSuggested: monday.toISOString(),
-        expiresAt: in21.toISOString(),
-      },
-      {
-        id: 3,
-        tmdbId: 807,
-        title: "Seven Samurai",
-        year: 1954,
-        user: "akira",
-        pitch:
-          "On structure and ensemble dynamics—connects with our thread on communal ethics and action form.",
-        weekSuggested: monday.toISOString(),
-        expiresAt: in21.toISOString(),
-      },
-    ],
-    flagged: [
-      {
-        id: 11,
-        type: "review",
-        filmId: 101,
-        filmTitle: "In the Mood for Love",
-        user: "barry",
-        excerpt:
-          "This felt slow to me. Maybe I missed the point—doorways and hallways blend together after a while.",
-        reason: "Tone: dismissive without evidence",
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: 12,
-        type: "comment",
-        filmId: 101,
-        filmTitle: "In the Mood for Love",
-        user: "claire",
-        content:
-          "Spoiler: The hotel room conversation implies confession is refused.",
-        hasSpoilers: true,
-        reason: "Spoiler not tagged originally",
-        createdAt: new Date().toISOString(),
-      },
-    ],
-    members: [
-      {
-        id: "1",
-        username: "agnes",
-        participationRate: 92,
-        missedWeeks: 0,
-        isActive: true,
-      },
-      {
-        id: "2",
-        username: "akira",
-        participationRate: 88,
-        missedWeeks: 1,
-        isActive: true,
-      },
-      {
-        id: "3",
-        username: "claire",
-        participationRate: 84,
-        missedWeeks: 1,
-        isActive: true,
-      },
-      {
-        id: "4",
-        username: "bong",
-        participationRate: 90,
-        missedWeeks: 0,
-        isActive: true,
-      },
-      {
-        id: "5",
-        username: "chantal",
-        participationRate: 70,
-        missedWeeks: 3,
-        isActive: true,
-      },
-      {
-        id: "6",
-        username: "barry",
-        participationRate: 65,
-        missedWeeks: 4,
-        isActive: true,
-      },
-      {
-        id: "7",
-        username: "manny",
-        participationRate: 86,
-        missedWeeks: 1,
-        isActive: true,
-      },
-      {
-        id: "8",
-        username: "pauline",
-        participationRate: 80,
-        missedWeeks: 2,
-        isActive: true,
-      },
-      {
-        id: "9",
-        username: "yasujiro",
-        participationRate: 78,
-        missedWeeks: 2,
-        isActive: true,
-      },
-    ],
-    settings: {
-      publicTeasersEnabled: true,
-      seatsAvailable: 1,
-    },
-  };
-};
-
+// Helpers
 const formatWindow = (weekStartISO: string) => {
   const start = new Date(weekStartISO);
   const end = new Date(start);
@@ -356,7 +202,6 @@ const FlaggedCard = ({ item }: { item: FlaggedItem }) => (
       {item.type === "review" ? (item as any).excerpt : (item as any).content}
     </div>
     <div className="flex items-center justify-end gap-2">
-      {/* Highlight (for excerpt surface) */}
       <form method="POST" action="/api/admin/flags/highlight">
         <input type="hidden" name="item_id" value={item.id} />
         <input type="hidden" name="type" value={item.type} />
@@ -367,7 +212,6 @@ const FlaggedCard = ({ item }: { item: FlaggedItem }) => (
           Mark as highlight
         </button>
       </form>
-      {/* Resolve */}
       <form method="POST" action="/api/admin/flags/resolve">
         <input type="hidden" name="item_id" value={item.id} />
         <input type="hidden" name="type" value={item.type} />
@@ -378,7 +222,6 @@ const FlaggedCard = ({ item }: { item: FlaggedItem }) => (
           Resolve
         </button>
       </form>
-      {/* Delete */}
       <form method="POST" action="/api/admin/flags/delete">
         <input type="hidden" name="item_id" value={item.id} />
         <input type="hidden" name="type" value={item.type} />
@@ -447,6 +290,185 @@ const MemberRow = ({ m }: { m: Member }) => (
     </div>
   </div>
 );
+
+async function fetchAdminManageData(): Promise<AdminManageData> {
+  // Current film
+  const current = await db
+    .select({
+      id: films.id,
+      title: films.title,
+      year: films.year,
+      director: films.director,
+      runtime: films.runtime,
+      posterUrl: films.posterUrl,
+      adminNotes: films.adminNotes,
+      weekStart: films.weekStart,
+    })
+    .from(films)
+    .orderBy(
+      // Explicit enum casts to avoid type ambiguity
+      dsql`CASE ${films.status}
+          WHEN 'current'::film_status THEN 1
+          WHEN 'upcoming'::film_status THEN 2
+          ELSE 3
+        END`,
+      desc(films.weekStart)
+    )
+    .limit(1)
+    .then((r) => r[0] ?? null);
+
+  // Active members
+  const membersRow = await db
+    .select({ cnt: dsql<number>`CAST(COUNT(*) AS int)` })
+    .from(usersTable)
+    .where(eq(usersTable.isActive, true))
+    .then((r) => r[0]?.cnt ?? 0);
+
+  // Aggregates for current film
+  let groupAvg: number | null = null;
+  let dissent: number | null = null;
+  let watchedCount = 0;
+
+  if (current) {
+    const agg = await db
+      .select({
+        avg: dsql<number | null>`ROUND(AVG(${ratings.score})::numeric, 1)`,
+        std: dsql<
+          number | null
+        >`ROUND(COALESCE(stddev_pop(${ratings.score}), 0)::numeric, 1)`,
+        cnt: dsql<number>`CAST(COUNT(*) AS int)`,
+      })
+      .from(ratings)
+      .where(eq(ratings.filmId, current.id))
+      .then((r) => r[0]);
+
+    groupAvg = agg?.avg ?? null;
+    dissent = agg?.std ?? null;
+    watchedCount = agg?.cnt ?? 0;
+  }
+
+  const participation =
+    membersRow > 0
+      ? Math.round((watchedCount / Math.min(membersRow, CLUB_CAPACITY)) * 100)
+      : 0;
+
+  // Suggestions (pending)
+  const pending = await db
+    .select({
+      id: suggestions.id,
+      tmdbId: suggestions.tmdbId,
+      title: suggestions.title,
+      pitch: suggestions.pitch,
+      weekSuggested: suggestions.weekSuggested,
+      createdAt: suggestions.createdAt,
+      user: usersTable.username,
+    })
+    .from(suggestions)
+    .innerJoin(usersTable, eq(usersTable.id, suggestions.userId))
+    .where(eq(suggestions.status, "pending"))
+    .orderBy(desc(suggestions.createdAt))
+    .limit(25);
+
+  const suggestionsMapped: Suggestion[] = pending.map((s) => {
+    const ws =
+      typeof s.weekSuggested === "string"
+        ? s.weekSuggested
+        : getCurrentMondayYmd();
+    const exp = new Date(ws);
+    exp.setDate(exp.getDate() + 28);
+    return {
+      id: s.id,
+      tmdbId: s.tmdbId,
+      title: s.title,
+      year: undefined,
+      user: s.user,
+      pitch: s.pitch,
+      weekSuggested: ws,
+      expiresAt: exp.toISOString(),
+    };
+  });
+
+  // Members list (basic, with defaulted participation/missed)
+  const membersListRows = await db
+    .select({
+      id: usersTable.id,
+      username: usersTable.username,
+      avatarUrl: usersTable.avatarUrl,
+      isActive: usersTable.isActive,
+    })
+    .from(usersTable)
+    .orderBy(usersTable.username);
+
+  const membersList: Member[] = membersListRows.map((m) => ({
+    id: m.id,
+    username: m.username,
+    name: null,
+    avatarUrl: m.avatarUrl ?? null,
+    isActive: m.isActive ?? true,
+    participationRate: 0, // not computed historically
+    missedWeeks: 0, // requires historical weekly data
+  }));
+
+  // Settings: best-effort read from a generic "settings" table (if present)
+  let publicTeasersEnabled = true;
+  let seatsAvailable = 0;
+  try {
+    const rows: any = await db.execute(
+      dsql`select key, value from "settings" where key in ('publicTeasersEnabled','seatsAvailable')`
+    );
+    const arr: Array<{ key: string; value: string }> = Array.isArray(rows)
+      ? (rows as any)
+      : (rows as any).rows ?? [];
+    for (const r of arr) {
+      if (r.key === "publicTeasersEnabled") {
+        const v = String(r.value).toLowerCase();
+        publicTeasersEnabled = ["1", "true", "on", "yes"].includes(v);
+      }
+      if (r.key === "seatsAvailable") {
+        const n = Number(r.value);
+        seatsAvailable = Number.isFinite(n)
+          ? Math.max(0, Math.min(10, Math.floor(n)))
+          : 0;
+      }
+    }
+  } catch {
+    // settings table may not exist; use defaults
+  }
+
+  // Week start: prefer current film's week_start; else current Monday
+  const weekStart =
+    (current?.weekStart && String(current.weekStart)) || getCurrentMondayYmd();
+
+  return {
+    weekStart,
+    currentFilm: current
+      ? {
+          id: current.id,
+          title: current.title,
+          year: current.year,
+          director: current.director ?? null,
+          runtime: current.runtime ?? null,
+          posterUrl: current.posterUrl ?? null,
+          adminIntro: current.adminNotes ?? null,
+          groupAvg,
+          dissent,
+        }
+      : null,
+    stats: {
+      members: membersRow,
+      capacity: CLUB_CAPACITY,
+      watchedCount,
+      participation,
+    },
+    suggestions: suggestionsMapped,
+    flagged: [], // no flags table yet
+    members: membersList,
+    settings: {
+      publicTeasersEnabled,
+      seatsAvailable,
+    },
+  };
+}
 
 const Page = async () => {
   const data = await fetchAdminManageData();
