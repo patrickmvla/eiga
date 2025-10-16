@@ -4,13 +4,13 @@ import { discussions } from "@/drizzle/schema";
 import { auth } from "@/lib/auth/utils";
 import { db } from "@/lib/db/client";
 import {
-    notifyDiscussionNew,
-    notifyDiscussionUpdate,
+  notifyDiscussionNew,
+  notifyDiscussionUpdate,
 } from "@/lib/realtime/server";
 import {
-    DiscussionCreateSchema,
-    DiscussionDeleteSchema,
-    DiscussionEditSchema,
+  DiscussionCreateSchema,
+  DiscussionDeleteSchema,
+  DiscussionEditSchema,
 } from "@/lib/validations/discussion.schema";
 import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
@@ -26,9 +26,13 @@ const toJSON = (b: unknown, s = 200) =>
       "cache-control": "no-store",
     },
   });
+
 const wantsJSON = (req: Request) =>
   (req.headers.get("accept") || "").includes("application/json") ||
   (req.headers.get("content-type") || "").includes("application/json");
+
+// Next 15: redirects must use absolute URLs
+const absolute = (req: Request, path: string) => new URL(path, req.url);
 
 const readPayload = async (req: Request) => {
   try {
@@ -44,8 +48,9 @@ export async function POST(req: Request) {
   if (!session?.user) {
     return wantsJSON(req)
       ? toJSON({ ok: false, error: "unauthorized" }, 401)
-      : NextResponse.redirect("/login", { status: 303 });
+      : NextResponse.redirect(absolute(req, "/login"), 303);
   }
+
   const raw = await readPayload(req);
   // Empty string parent_id means "thread" → drop it
   if (raw?.parent_id === "") delete raw.parent_id;
@@ -57,7 +62,7 @@ export async function POST(req: Request) {
           { ok: false, error: "invalid", issues: parsed.error.flatten() },
           400
         )
-      : NextResponse.redirect("/", { status: 303 });
+      : NextResponse.redirect(absolute(req, "/"), 303);
   }
 
   const { film_id, parent_id, content, has_spoilers, timestamp_reference } =
@@ -70,8 +75,10 @@ export async function POST(req: Request) {
       .from(discussions)
       .where(eq(discussions.id, parent_id))
       .limit(1);
+
     if (parent.length === 0)
       return toJSON({ ok: false, error: "parent_not_found" }, 404);
+
     if (parent[0].parentId != null)
       return toJSON({ ok: false, error: "max_depth" }, 400);
   }
@@ -95,7 +102,7 @@ export async function POST(req: Request) {
 
   return wantsJSON(req)
     ? toJSON({ ok: true, id: newId })
-    : NextResponse.redirect(`/films/${film_id}`, { status: 303 });
+    : NextResponse.redirect(absolute(req, `/films/${film_id}`), 303);
 }
 
 export async function PATCH(req: Request) {
@@ -123,6 +130,7 @@ export async function PATCH(req: Request) {
     .limit(1);
 
   if (row.length === 0) return toJSON({ ok: false, error: "not_found" }, 404);
+
   const isOwner = row[0].userId === session.user.id;
   const isAdmin = session.user.role === "admin";
   if (!isOwner && !isAdmin)
@@ -170,6 +178,7 @@ export async function DELETE(req: Request) {
     .limit(1);
 
   if (row.length === 0) return toJSON({ ok: false, error: "not_found" }, 404);
+
   const isOwner = row[0].userId === session.user.id;
   const isAdmin = session.user.role === "admin";
   if (!isOwner && !isAdmin)

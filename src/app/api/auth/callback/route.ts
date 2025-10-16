@@ -8,12 +8,18 @@ import { createSession } from "@/lib/auth/utils";
 import { normalizeCallbackUrl, DEFAULT_CALLBACK_PATH } from "@/lib/auth/config";
 import { jwtVerify } from "jose";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const enc = new TextEncoder();
 const secret = (
   process.env.BETTER_AUTH_SECRET ||
   process.env.AUTH_SECRET ||
   ""
 ).toString();
+
+// Next 15: redirects must use absolute URLs
+const abs = (req: Request, pathOrUrl: string) => new URL(pathOrUrl, req.url);
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -24,14 +30,15 @@ export async function GET(req: Request) {
   // Verify short-lived magic token
   let payload: any = null;
   try {
+    if (!secret) throw new Error("missing_secret");
     const res = await jwtVerify(token, enc.encode(secret));
     payload = res.payload;
   } catch {
-    return NextResponse.redirect("/login?error=invalid_token", { status: 303 });
+    return NextResponse.redirect(abs(req, "/login?error=invalid_token"), 303);
   }
 
   if (!payload?.sub || payload?.purpose !== "magic") {
-    return NextResponse.redirect("/login?error=invalid_token", { status: 303 });
+    return NextResponse.redirect(abs(req, "/login?error=invalid_token"), 303);
   }
 
   // Ensure user exists and active
@@ -50,7 +57,7 @@ export async function GET(req: Request) {
 
   const u = row[0];
   if (!u || u.is_active === false) {
-    return NextResponse.redirect("/login?error=inactive", { status: 303 });
+    return NextResponse.redirect(abs(req, "/login?error=inactive"), 303);
   }
 
   // Create long-lived session cookie
@@ -63,6 +70,7 @@ export async function GET(req: Request) {
     is_active: u.is_active ?? true,
   });
 
-  const dest = normalizeCallbackUrl(callbackUrl);
-  return NextResponse.redirect(dest, { status: 303 });
+  // Normalize callback (restrict to same-origin/path), then redirect absolutely
+  const destPath = normalizeCallbackUrl(callbackUrl);
+  return NextResponse.redirect(abs(req, destPath), 303);
 }

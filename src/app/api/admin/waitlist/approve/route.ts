@@ -21,21 +21,43 @@ const toJSON = (b: unknown, s = 200) =>
     },
   });
 
+const wantsJSON = (req: Request) =>
+  (req.headers.get("accept") || "").includes("application/json") ||
+  (req.headers.get("content-type") || "").includes("application/json");
+
+// Next 15: redirects must be absolute
 const abs = (req: Request, path: string) => new URL(path, req.url);
+
+const readPayload = async (req: Request) => {
+  try {
+    const form = await req.formData();
+    return Object.fromEntries(form.entries() as any);
+  } catch {
+    return (await req.json().catch(() => ({}))) as Record<string, any>;
+  }
+};
 
 export async function POST(req: Request) {
   const admin = await ensureAdmin();
-  if (!admin?.user) return toJSON({ ok: false, error: "unauthorized" }, 401);
+  if (!admin?.user) {
+    return wantsJSON(req)
+      ? toJSON({ ok: false, error: "unauthorized" }, 401)
+      : NextResponse.redirect(abs(req, "/login"), 303);
+  }
 
-  const form = await req.formData().catch(() => null);
-  const id = Number(form?.get("id"));
-  const expiresDays = Number(form?.get("expires_in_days") || "14");
+  const raw = await readPayload(req);
+  const id = Number(raw?.id);
+  const expiresDays = Number(raw?.expires_in_days ?? raw?.expires_in_days?.value ?? 14);
 
   const parsed = AdminWaitlistApproveSchema.safeParse({
     id,
     expires_in_days: expiresDays,
   });
-  if (!parsed.success) return toJSON({ ok: false, error: "invalid" }, 400);
+  if (!parsed.success) {
+    return wantsJSON(req)
+      ? toJSON({ ok: false, error: "invalid", issues: parsed.error.flatten() }, 400)
+      : NextResponse.redirect(abs(req, "/invites?error=invalid"), 303);
+  }
 
   // Read waitlist row if table exists (email only)
   let email = "";
@@ -53,7 +75,9 @@ export async function POST(req: Request) {
   }
 
   if (!email) {
-    return toJSON({ ok: false, error: "no_email" }, 400);
+    return wantsJSON(req)
+      ? toJSON({ ok: false, error: "no_email" }, 400)
+      : NextResponse.redirect(abs(req, "/invites?error=no_email"), 303);
   }
 
   // Create invite code
@@ -62,11 +86,22 @@ export async function POST(req: Request) {
   const exp = new Date(now);
   exp.setDate(exp.getDate() + parsed.data.expires_in_days);
 
-  await db.insert(invites).values({
-    code,
-    createdBy: admin.user.id,
-    expiresAt: exp,
-  });
+  // Insert invite; if code collision (unlikely), retry once
+  try {
+    await db.insert(invites).values({
+      code,
+      createdBy: admin.user.id,
+      expiresAt: exp,
+    });
+  } catch {
+    // retry with a fresh code
+    const code2 = generateInviteCode();
+    await db.insert(invites).values({
+      code: code2,
+      createdBy: admin.user.id,
+      expiresAt: exp,
+    });
+  }
 
   const redeem = buildInviteRedeemUrl(code);
 
@@ -74,8 +109,9 @@ export async function POST(req: Request) {
     await sendInviteEmail(email, redeem, parsed.data.expires_in_days);
   } catch (e) {
     if (process.env.NODE_ENV === "development") {
-      console.warn("[waitlist:approve] email failed", e);
+      console.warn("[waitlist:approve] email failed", (e as Error).message);
     }
+    // still continue; admin can resend manually
   }
 
   // Best-effort status update if column exists
@@ -83,9 +119,11 @@ export async function POST(req: Request) {
     await db.execute(
       sql`update "waitlist" set status = 'approved' where id = ${parsed.data.id}`
     );
-  } catch {}
+  } catch {
+    // ignore column/table issues in best-effort mode
+  }
 
-  return NextResponse.redirect(abs(req, "/invites?approved=1"), {
-    status: 303,
-  });
+  return wantsJSON(req)
+    ? toJSON({ ok: true })
+    : NextResponse.redirect(abs(req, "/invites?approved=1"), 303);
 }

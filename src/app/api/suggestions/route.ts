@@ -19,16 +19,26 @@ const toJSON = (body: unknown, status = 200) =>
       "cache-control": "no-store",
     },
   });
+
 const wantsJSON = (req: Request) =>
   (req.headers.get("accept") || "").includes("application/json") ||
   (req.headers.get("content-type") || "").includes("application/json");
+
+// Helper: absolute URL (Next 15 requires absolute for redirects)
+const absolute = (req: Request, path: string) => new URL(path, req.url);
+
+// const toBool = (v: string | null) => {
+//   if (!v) return false;
+//   const s = v.toLowerCase();
+//   return s === "1" || s === "true" || s === "on" || s === "yes";
+// };
 
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user) {
     return wantsJSON(req)
       ? toJSON({ ok: false, error: "unauthorized" }, 401)
-      : NextResponse.redirect("/login?callbackUrl=/suggest", { status: 303 });
+      : NextResponse.redirect(absolute(req, "/login?callbackUrl=/suggest"), 303);
   }
 
   // Read payload (form or json)
@@ -43,11 +53,8 @@ export async function POST(req: Request) {
   const parsed = MemberSuggestionSchema.safeParse(raw);
   if (!parsed.success) {
     return wantsJSON(req)
-      ? toJSON(
-          { ok: false, error: "invalid", issues: parsed.error.flatten() },
-          400
-        )
-      : NextResponse.redirect("/suggest?error=invalid", { status: 303 });
+      ? toJSON({ ok: false, error: "invalid", issues: parsed.error.flatten() }, 400)
+      : NextResponse.redirect(absolute(req, "/suggest?error=invalid"), 303);
   }
 
   const { tmdb_id, title, pitch } = parsed.data;
@@ -57,18 +64,13 @@ export async function POST(req: Request) {
   const exists = await db
     .select({ id: suggestions.id })
     .from(suggestions)
-    .where(
-      and(
-        eq(suggestions.userId, session.user.id),
-        eq(suggestions.weekSuggested, week)
-      )
-    )
+    .where(and(eq(suggestions.userId, session.user.id), eq(suggestions.weekSuggested, week)))
     .limit(1);
 
   if (exists.length > 0) {
     return wantsJSON(req)
       ? toJSON({ ok: false, error: "one_per_week" }, 409)
-      : NextResponse.redirect("/suggest?error=rate_limit", { status: 303 });
+      : NextResponse.redirect(absolute(req, "/suggest?error=rate_limit"), 303);
   }
 
   await db.insert(suggestions).values({
@@ -82,5 +84,5 @@ export async function POST(req: Request) {
 
   return wantsJSON(req)
     ? toJSON({ ok: true })
-    : NextResponse.redirect("/suggest?submitted=1", { status: 303 });
+    : NextResponse.redirect(absolute(req, "/suggest?submitted=1"), 303);
 }

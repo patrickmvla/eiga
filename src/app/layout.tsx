@@ -26,12 +26,16 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
+  themeColor: "#000000", // lock the browser UI to black
 };
 
 const RootLayout = ({ children }: { children: React.ReactNode }) => (
-  <html lang="en" className={jetbrainsMono.variable} suppressHydrationWarning>
-    <body className="min-h-dvh bg-neutral-950 text-neutral-200 antialiased font-mono selection:bg-white/10">
+  <html
+    lang="en"
+    className={`dark ${jetbrainsMono.variable}`} // always dark
+    suppressHydrationWarning
+  >
+    <body className="min-h-dvh antialiased font-mono">
       <QueryProvider>{children}</QueryProvider>
     </body>
   </html>

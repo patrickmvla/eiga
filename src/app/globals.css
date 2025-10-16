@@ -1,28 +1,81 @@
 /* app/globals.css */
 @import "tailwindcss";
+@import "tw-animate-css";
+
+/* Keep dark variant available for utilities, but we don't switch themes */
+@custom-variant dark (&:is(.dark *));
 
 /* Optional: expose JetBrains Mono as the mono token for Tailwind v4's font-mono */
 @theme {
   --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-   /* Olive palette tuned for dark UI */
+
+  /* Olive palette for accents/brand */
   --color-olive-50:  #fafbf6;
   --color-olive-100: #f3f6ea;
   --color-olive-200: #e5eccf;
   --color-olive-300: #cfe0ab;
   --color-olive-400: #b5cf84;
-  --color-olive-500: #9fbb68; /* primary accent */
+  --color-olive-500: #9fbb68;
   --color-olive-600: #879e55;
-  --color-olive-700: #6d8145;
-  --color-olive-800: #576838;
+  --color-olive-700: #6d8145; /* darker primary */
+  --color-olive-800: #576838; /* deep accent */
   --color-olive-900: #454f2d;
   --color-olive-950: #2a311b;
 }
 
-/* Base */
+/* Base — always dark, darker surfaces */
 :root {
   color-scheme: dark;
+  --radius: 0.625rem;
+
+  /* Surfaces */
+  --background: #000000;         /* pure black */
+  --foreground: #d9d9d9;         /* dimmed foreground */
+
+  --card: #090909;               /* deeper surface */
+  --card-foreground: #d9d9d9;
+
+  --popover: #090909;
+  --popover-foreground: #d9d9d9;
+
+  /* Brand/accents (darker olive) */
+  --primary: var(--color-olive-800);
+  --primary-foreground: #f5f5f5;
+
+  --secondary: #0d0d0d;
+  --secondary-foreground: #d6d6d6;
+
+  --muted: #0d0d0d;
+  --muted-foreground: #9a9a9a;
+
+  --accent: var(--color-olive-900);
+  --accent-foreground: #f5f5f5;
+
+  /* Status + UI chrome */
+  --destructive: #b91c1c;
+  --border: rgba(255, 255, 255, 0.06);
+  --input: rgba(255, 255, 255, 0.10);
+  --ring: var(--color-olive-800);
+
+  /* Charts (shifted darker) */
+  --chart-1: var(--color-olive-800);
+  --chart-2: var(--color-olive-700);
+  --chart-3: var(--color-olive-900);
+  --chart-4: var(--color-olive-600);
+  --chart-5: var(--color-olive-500);
+
+  /* Sidebar */
+  --sidebar: #000000;
+  --sidebar-foreground: #d9d9d9;
+  --sidebar-primary: var(--color-olive-800);
+  --sidebar-primary-foreground: #f5f5f5;
+  --sidebar-accent: #0a0a0a;
+  --sidebar-accent-foreground: #d9d9d9;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-ring: var(--color-olive-800);
 }
 
+/* Ensure full-height layout */
 html, body, #__next {
   height: 100%;
 }
@@ -30,14 +83,18 @@ html, body, #__next {
 html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
+
+  /* Fallback to avoid flash on load */
+  background-color: #000000;
 }
 
 body {
   /* Uses the CSS variable from next/font (JetBrains_Mono with `variable: '--font-mono'`) */
   font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
-  background: rgb(10 10 10); /* neutral-950-ish */
-  color: rgb(229 229 229);   /* neutral-200-ish */
+  /* Use tokens (no hardcoded neutrals) */
+  background: var(--background);
+  color: var(--foreground);
 
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -47,9 +104,10 @@ body {
   line-height: 1.6;
 }
 
-/* Selection color */
+/* Selection color (darker olive tint) */
 ::selection {
-  background: rgba(255, 255, 255, 0.16);
+  /* slightly subtler than before */
+  background: color-mix(in oklch, var(--primary) 22%, transparent);
 }
 
 /* Media elements scale nicely */
@@ -68,3 +126,56 @@ a {
 /* Handy utilities for nicer wrapping in long reviews */
 .text-balance { text-wrap: balance; }
 .text-pretty { text-wrap: pretty; }
+
+/* Expose tokens to Tailwind v4 theme */
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* Single-theme base layer */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* No .light mode, no token overrides under .dark needed.
+   If you still use dark: utilities, keep <html class="dark"> in your layout. */

@@ -25,18 +25,31 @@ const wantsJSON = (req: Request) => {
   return a.includes("application/json") || c.includes("application/json");
 };
 
-export async function POST(req: Request) {
-  // Read as formData first (from the page), else JSON
-  let raw: Record<string, any> = {};
+// Absolute URL helper (Next 15 redirects must be absolute)
+const abs = (req: Request, path: string) => new URL(path, req.url);
+
+const readPayload = async (req: Request) => {
   try {
     const form = await req.formData();
-    raw = Object.fromEntries(form.entries() as any);
+    return Object.fromEntries(form.entries() as any);
   } catch {
     try {
-      raw = (await req.json()) as Record<string, any>;
+      return (await req.json()) as Record<string, any>;
     } catch {
-      // ignore
+      return {};
     }
+  }
+};
+
+export async function POST(req: Request) {
+  // Read as formData first (from the page), else JSON
+  const raw = await readPayload(req);
+
+  // Honeypot: if bot filled the hidden field, short‑circuit as "ok"
+  if (typeof raw?.website === "string" && raw.website.trim().length > 0) {
+    return wantsJSON(req)
+      ? toJSON({ ok: true, ignored: true })
+      : NextResponse.redirect(abs(req, "/request-invite?success=1"), 303);
   }
 
   // Validate
@@ -68,13 +81,13 @@ export async function POST(req: Request) {
       console.warn("[waitlist] validation failed:", flat);
     }
 
-    const dest = new URL(
+    const dest = abs(
+      req,
       `/request-invite?error=${code}${name ? `&name=${name}` : ""}${
         email ? `&email=${email}` : ""
-      }`,
-      req.url
+      }`
     );
-    return NextResponse.redirect(dest, { status: 303 });
+    return NextResponse.redirect(dest, 303);
   }
 
   const {
@@ -87,6 +100,25 @@ export async function POST(req: Request) {
     availability,
     hear,
   } = parsed.data;
+
+  // Simple dedupe: if same email submitted in last 24h, treat as success (or return 409 JSON)
+  try {
+    const dup = await db.execute(sql`
+      select 1 from "waitlist"
+      where lower("email") = lower(${email})
+        and "created_at" > NOW() - interval '24 hours'
+      limit 1
+    `);
+    const dupRows: any[] =
+      Array.isArray(dup) ? (dup as any) : ("rows" in (dup as any) ? (dup as any).rows : []);
+    if (dupRows && dupRows.length > 0) {
+      return wantsJSON(req)
+        ? toJSON({ ok: true, duplicate: true })
+        : NextResponse.redirect(abs(req, "/request-invite?success=1"), 303);
+    }
+  } catch  {
+    // ignore schema or table issues in dedupe
+  }
 
   // Collect simple metadata
   const ua = req.headers.get("user-agent") || "";
@@ -145,6 +177,5 @@ export async function POST(req: Request) {
     return toJSON({ ok: true });
   }
 
-  const dest = new URL("/request-invite?success=1", req.url);
-  return NextResponse.redirect(dest, { status: 303 });
+  return NextResponse.redirect(abs(req, "/request-invite?success=1"), 303);
 }

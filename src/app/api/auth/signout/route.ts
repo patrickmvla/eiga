@@ -2,7 +2,8 @@
 import { NextResponse } from "next/server";
 import { destroySession } from "@/lib/auth/utils";
 
-export async function POST() {
+// Next 15 requires absolute URLs for redirects
+export async function POST(req: Request) {
   await destroySession();
-  return NextResponse.redirect("/login", { status: 303 });
+  return NextResponse.redirect(new URL("/login", req.url), { status: 303 });
 }

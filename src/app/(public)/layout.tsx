@@ -1,7 +1,7 @@
 // app/(public)/layout.tsx
-import type { ReactNode } from 'react';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
+import type { ReactNode } from "react";
+import { Header } from "@/components/layout/header";
+import { Footer } from "@/components/layout/footer";
 
 const PublicLayout = ({ children }: { children: ReactNode }) => (
   <>

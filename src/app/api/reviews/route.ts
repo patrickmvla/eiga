@@ -22,9 +22,13 @@ const toJSON = (b: unknown, s = 200) =>
       "cache-control": "no-store",
     },
   });
+
 const wantsJSON = (req: Request) =>
   (req.headers.get("accept") || "").includes("application/json") ||
   (req.headers.get("content-type") || "").includes("application/json");
+
+// Next 15 requires absolute URLs for redirects
+const abs = (req: Request, path: string) => new URL(path, req.url);
 
 const readPayload = async (req: Request) => {
   try {
@@ -40,7 +44,7 @@ export async function POST(req: Request) {
   if (!session?.user)
     return wantsJSON(req)
       ? toJSON({ ok: false, error: "unauthorized" }, 401)
-      : NextResponse.redirect("/login", { status: 303 });
+      : NextResponse.redirect(abs(req, "/login"), 303);
 
   const raw = await readPayload(req);
   const parsed = RatingCreateSchema.safeParse(raw);
@@ -50,7 +54,7 @@ export async function POST(req: Request) {
           { ok: false, error: "invalid", issues: parsed.error.flatten() },
           400
         )
-      : NextResponse.redirect("/", { status: 303 });
+      : NextResponse.redirect(abs(req, "/"), 303);
   }
 
   const { film_id, score, review } = parsed.data;
@@ -59,9 +63,7 @@ export async function POST(req: Request) {
   const existing = await db
     .select({ id: ratings.id })
     .from(ratings)
-    .where(
-      and(eq(ratings.userId, session.user.id), eq(ratings.filmId, film_id))
-    )
+    .where(and(eq(ratings.userId, session.user.id), eq(ratings.filmId, film_id)))
     .limit(1);
 
   if (existing.length > 0) {
@@ -83,7 +85,7 @@ export async function POST(req: Request) {
 
   return wantsJSON(req)
     ? toJSON({ ok: true })
-    : NextResponse.redirect(`/films/${film_id}?reviewed=1`, { status: 303 });
+    : NextResponse.redirect(abs(req, `/films/${film_id}?reviewed=1`), 303);
 }
 
 export async function PATCH(req: Request) {
@@ -103,9 +105,7 @@ export async function PATCH(req: Request) {
   const row = await db
     .select({ id: ratings.id })
     .from(ratings)
-    .where(
-      and(eq(ratings.userId, session.user.id), eq(ratings.filmId, film_id))
-    )
+    .where(and(eq(ratings.userId, session.user.id), eq(ratings.filmId, film_id)))
     .limit(1);
 
   if (row.length === 0) return toJSON({ ok: false, error: "not_found" }, 404);

@@ -69,14 +69,29 @@ const tmdbFetch = async <T>(
   return (await res.json()) as T;
 };
 
-// Image helpers
-export const buildPosterUrl = (path?: string | null, size: PosterSize = 'w342'): string | null =>
-  path ? `${TMDB_IMG_BASE}${size}${path}` : null;
-export const buildBackdropUrl = (path?: string | null, size: BackdropSize = 'w780'): string | null =>
-  path ? `${TMDB_IMG_BASE}${size}${path}` : null;
-export const buildProfileUrl = (path?: string | null, size: ProfileSize = 'w185'): string | null =>
-  path ? `${TMDB_IMG_BASE}${size}${path}` : null;
+// ——— Image helpers (hardened) ———
+const joinImg = (size: string, path?: string | null): string | null => {
+  if (!path) return null;
+  // TMDB paths should start with "/", ensure it for safety
+  const safePath = path.startsWith('/') ? path : `/${path}`;
+  // TMDB_IMG_BASE already ends with "/"
+  return `${TMDB_IMG_BASE}${size}${safePath}`;
+};
 
+export const buildPosterUrl = (path?: string | null, size: PosterSize = 'w342'): string | null =>
+  joinImg(size, path);
+
+export const buildBackdropUrl = (path?: string | null, size: BackdropSize = 'w780'): string | null =>
+  joinImg(size, path);
+
+export const buildProfileUrl = (path?: string | null, size: ProfileSize = 'w185'): string | null =>
+  joinImg(size, path);
+
+// Convenience best sizes
+export const bestPoster = (posterPath?: string | null): string | null =>
+  buildPosterUrl(posterPath, 'w342');
+
+// ——— Parsing helpers ———
 const parseYear = (dateStr?: string | null): number | null => {
   if (!dateStr) return null;
   const y = Number(String(dateStr).slice(0, 4));
@@ -214,7 +229,7 @@ export const searchMovies = async (q: string, opts?: {
     const data = await tmdbFetch<TmdbMovieSearchResponse>('/search/movie', params);
     return (data.results ?? []).slice(0, 10).map((m) => {
       const year = parseYear(m.release_date);
-      const posterUrl = buildPosterUrl(m.poster_path, 'w342');
+      const posterUrl = buildPosterUrl(m.poster_path, 'w342'); // now hardened
       return {
         tmdbId: m.id,
         title: m.title,
@@ -247,7 +262,7 @@ export const searchPerson = async (q: string, opts?: {
   return withCache<SearchPerson[]>(key, 1000 * 30, async () => {
     const data = await tmdbFetch<TmdbPersonSearchResponse>('/search/person', params);
     return (data.results ?? []).slice(0, 5).map((p) => {
-      const profileUrl = buildProfileUrl(p.profile_path, 'w185');
+      const profileUrl = buildProfileUrl(p.profile_path, 'w185'); // now hardened
       return {
         tmdbId: p.id,
         name: p.name,
@@ -330,7 +345,3 @@ export const getMovieDetails = async (
     trailerUrl,
   };
 };
-
-// Convenience
-export const bestPoster = (posterPath?: string | null): string | null =>
-  buildPosterUrl(posterPath, 'w342');
